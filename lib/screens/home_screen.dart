@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -775,7 +776,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         context: context,
         barrierDismissible: false,
         builder: (context) => const Center(
-          child: CircularProgressIndicator(),
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00BCD4)),
+          ),
         ),
       );
 
@@ -785,52 +788,75 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       Uint8List pngBytes = byteData!.buffer.asUint8List();
 
-      // 保存到临时目录
-      final directory = await getTemporaryDirectory();
+      // 使用 image_gallery_saver_plus 保存到相册
       final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final result = await ImageGallerySaverPlus.saveImage(
+        pngBytes,
+        quality: 100,
+        name: "watermark_$timestamp",
+      );
+
+      // 保存到本地文件用于历史记录
+      final directory = await getTemporaryDirectory();
       final file = File('${directory.path}/watermark_$timestamp.png');
       await file.writeAsBytes(pngBytes);
-      //
-      // // 保存到相册
-      // final result = await GallerySaver.saveImage(file.path);
-      //
-      // // 保存到历史记录
-      // await _saveToHistory(file.path);
-      //
-      // // 关闭加载对话框
-      // Navigator.of(context).pop();
-      //
-      // // 显示成功消息
-      // if (result == true) {
-      //   ScaffoldMessenger.of(context).showSnackBar(
-      //     SnackBar(
-      //       content: const Text('图片已保存到相册'),
-      //       backgroundColor: const Color(0xFF4CAF50),
-      //       behavior: SnackBarBehavior.floating,
-      //       shape: RoundedRectangleBorder(
-      //         borderRadius: BorderRadius.circular(10),
-      //       ),
-      //     ),
-      //   );
-      // } else {
-      //   ScaffoldMessenger.of(context).showSnackBar(
-      //     SnackBar(
-      //       content: const Text('保存失败，请检查权限设置'),
-      //       backgroundColor: Colors.red,
-      //       behavior: SnackBarBehavior.floating,
-      //       shape: RoundedRectangleBorder(
-      //         borderRadius: BorderRadius.circular(10),
-      //       ),
-      //     ),
-      //   );
-      // }
+
+      // 保存到历史记录
+      await _saveToHistory(file.path);
+
+      // 关闭加载对话框
+      Navigator.of(context).pop();
+
+      // 显示成功消息
+      if (result['isSuccess'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8),
+                Text('图片已保存到相册'),
+              ],
+            ),
+            backgroundColor: const Color(0xFF4CAF50),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.error, color: Colors.white),
+                SizedBox(width: 8),
+                Text('保存失败，请检查权限设置'),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+      }
     } catch (e) {
       // 关闭加载对话框
       Navigator.of(context).pop();
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('保存失败: $e'),
+          content: Row(
+            children: [
+              const Icon(Icons.error, color: Colors.white),
+              const SizedBox(width: 8),
+              Expanded(child: Text('保存失败: $e')),
+            ],
+          ),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
