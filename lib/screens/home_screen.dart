@@ -29,6 +29,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Color _textColor = Colors.red;
   double _opacity = 0.7;
   double _rotation = -30.0;
+  double _spacing = 100.0; // 水印间距
   
   // 预设水印文本
   final List<Map<String, dynamic>> _presetTexts = [
@@ -82,23 +83,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           child: FadeTransition(
             opacity: _fadeAnimation,
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // 标题区域
                   _buildHeader(),
                   const SizedBox(height: 30),
-                  
                   // 图片选择区域
                   _buildImageSelector(),
-                  const SizedBox(height: 25),
-                  
+                  const SizedBox(height: 8),
                   // 水印预览区域
                   if (_selectedImage != null) ...[
                     _buildWatermarkPreview(),
-                    const SizedBox(height: 25),
-                    
+                    const SizedBox(height: 8),
                     // 水印设置区域
                     _buildWatermarkSettings(),
                     const SizedBox(height: 30),
@@ -328,6 +325,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             textColor: _textColor,
             opacity: _opacity,
             rotation: _rotation,
+            spacing: _spacing,
+            mode: WatermarkMode.tile,
           ),
         ),
       ),
@@ -336,6 +335,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildWatermarkSettings() {
     return Container(
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -347,195 +347,170 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF00BCD4), Color(0xFF4CAF50)],
-                    ),
-                    borderRadius: BorderRadius.circular(10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF00BCD4), Color(0xFF4CAF50)],
                   ),
-                  child: const Icon(
-                    Icons.tune,
-                    color: Colors.white,
-                    size: 20,
-                  ),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(width: 12),
-                const Text(
-                  '水印设置',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF333333),
-                  ),
+                child: const Icon(
+                  Icons.tune,
+                  color: Colors.white,
+                  size: 20,
                 ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            
-            // 预设文本选择
-            const Text(
-              '预设模板',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF333333),
               ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: _presetTexts.map((preset) {
-                final isSelected = _watermarkText == preset['text'];
-                return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _watermarkText = preset['text'];
-                      _textColor = preset['color'];
-                    });
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      gradient: isSelected
-                          ? const LinearGradient(
-                              colors: [Color(0xFF00BCD4), Color(0xFF4CAF50)],
-                            )
-                          : null,
-                      color: isSelected ? null : Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(25),
-                      border: Border.all(
-                        color: isSelected
-                            ? Colors.transparent
-                            : Colors.grey.shade300,
+              const SizedBox(width: 12),
+              const Text(
+                '水印设置',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF333333),
+                ),
+              ),
+              const Spacer(),
+              // 设置按钮
+              Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF00BCD4), Color(0xFF4CAF50)],
+                  ),
+                  borderRadius: BorderRadius.circular(25),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF00BCD4).withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(25),
+                    onTap: _showSettingsBottomSheet,
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.settings, color: Colors.white, size: 18),
+                          SizedBox(width: 8),
+                          Text(
+                            '调整设置',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          preset['icon'],
-                          size: 16,
-                          color: isSelected ? Colors.white : preset['color'],
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          preset['text'],
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: isSelected ? Colors.white : Color(0xFF333333),
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 24),
-            
-            // 自定义文本输入
-            const Text(
-              '自定义文本',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF333333),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(15),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              child: TextField(
-                decoration: const InputDecoration(
-                  hintText: '输入自定义水印文本',
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.all(16),
                 ),
-                onChanged: (value) {
-                  setState(() {
-                    _watermarkText = value.isNotEmpty ? value : '仅供身份验证使用';
-                  });
-                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          
+          // 当前设置预览卡片
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xFF00BCD4).withOpacity(0.1),
+                  const Color(0xFF4CAF50).withOpacity(0.1),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(
+                color: const Color(0xFF00BCD4).withOpacity(0.3),
               ),
             ),
-            const SizedBox(height: 24),
-            
-            // 滑块控制区域
-            _buildSliderSection('字体大小', _fontSize, 12, 48, (value) {
-              setState(() {
-                _fontSize = value;
-              });
-            }, '${_fontSize.round()}px'),
-            
-            _buildSliderSection('透明度', _opacity, 0.1, 1.0, (value) {
-              setState(() {
-                _opacity = value;
-              });
-            }, '${(_opacity * 100).round()}%'),
-            
-            _buildSliderSection('旋转角度', _rotation, -90, 90, (value) {
-              setState(() {
-                _rotation = value;
-              });
-            }, '${_rotation.round()}°'),
-            
-            const SizedBox(height: 16),
-            
-            // 颜色选择
-            Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  '文字颜色',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF333333),
-                  ),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.preview,
+                      color: const Color(0xFF00BCD4),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      '当前设置',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF333333),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 20),
-                GestureDetector(
-                  onTap: _showColorPicker,
-                  child: Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: _textColor,
-                      borderRadius: BorderRadius.circular(25),
-                      border: Border.all(color: Colors.grey.shade300, width: 2),
-                      boxShadow: [
-                        BoxShadow(
-                          color: _textColor.withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.palette,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 8,
+                  children: [
+                    _buildSettingChip('文本', _watermarkText.length > 8 ? '${_watermarkText.substring(0, 8)}...' : _watermarkText, Icons.text_fields),
+                    _buildSettingChip('大小', '${_fontSize.round()}px', Icons.format_size),
+                    _buildSettingChip('透明度', '${(_opacity * 100).round()}%', Icons.opacity),
+                    _buildSettingChip('角度', '${_rotation.round()}°', Icons.rotate_right),
+                    _buildSettingChip('间距', '${_spacing.round()}px', Icons.grid_3x3),
+                    _buildSettingChip('颜色', _textColor == Colors.red ? '红色' : '黑色', Icons.palette, color: _textColor),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSettingChip(String label, String value, IconData icon, {Color? color}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade300),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 14,
+            color: color ?? const Color(0xFF00BCD4),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            '$label: $value',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF666666),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -640,40 +615,92 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _pickImage() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      setState(() {
-        _selectedImage = File(image.path);
-      });
-    }
-  }
-
-  void _showColorPicker() {
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('选择颜色'),
-          content: SingleChildScrollView(
-            // child: ColorPicker(
-            //   pickerColor: _textColor,
-            //   onColorChanged: (color) {
-            //     setState(() {
-            //       _textColor = color;
-            //     });
-            //   },
-            // ),
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  '选择图片来源',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF333333),
+                  ),
+                ),
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF00BCD4), Color(0xFF4CAF50)],
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.camera_alt, color: Colors.white),
+                ),
+                title: const Text('拍照'),
+                subtitle: const Text('使用相机拍摄新照片'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final XFile? image = await _picker.pickImage(source: ImageSource.camera);
+                  if (image != null) {
+                    setState(() {
+                      _selectedImage = File(image.path);
+                    });
+                  }
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF00BCD4), Color(0xFF4CAF50)],
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.photo_library, color: Colors.white),
+                ),
+                title: const Text('从相册选择'),
+                subtitle: const Text('选择已有的照片'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+                  if (image != null) {
+                    setState(() {
+                      _selectedImage = File(image.path);
+                    });
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('确定'),
-            ),
-          ],
-        );
-      },
+        ),
+      ),
     );
   }
+
 
   Future<void> _downloadImage() async {
     try {
@@ -765,5 +792,596 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
     
     await prefs.setStringList('watermark_history', historyList);
+  }
+
+  // 显示设置底部弹窗
+  void _showSettingsBottomSheet() {
+    final TextEditingController textController = TextEditingController(text: _watermarkText);
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          height: MediaQuery.of(context).size.height * 0.85,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+          ),
+          child: Column(
+            children: [
+              // 顶部拖拽条和标题
+              Container(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF00BCD4), Color(0xFF4CAF50)],
+                            ),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.tune, color: Colors.white, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          '水印设置',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF333333),
+                          ),
+                        ),
+                        const Spacer(),
+                        // 重置按钮
+                        TextButton.icon(
+                          onPressed: () {
+                            setModalState(() {
+                              _watermarkText = '仅供身份验证使用';
+                              _fontSize = 24.0;
+                              _textColor = Colors.red;
+                              _opacity = 0.7;
+                              _rotation = -30.0;
+                              _spacing = 100.0;
+                              textController.text = _watermarkText;
+                            });
+                            setState(() {});
+                          },
+                          icon: const Icon(Icons.refresh, size: 18),
+                          label: const Text('重置'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xFF00BCD4),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              
+              // 设置内容区域
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 文本设置分组
+                      _buildSettingGroup(
+                        '文本设置',
+                        Icons.text_fields,
+                        [
+                          // 预设模板
+                          const Text(
+                            '快捷选择',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF666666),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: _presetTexts.map((preset) {
+                              final isSelected = _watermarkText == preset['text'];
+                              return GestureDetector(
+                                onTap: () {
+                                  setModalState(() {
+                                    _watermarkText = preset['text'];
+                                    _textColor = preset['color'];
+                                    textController.text = _watermarkText;
+                                  });
+                                  setState(() {});
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    gradient: isSelected
+                                        ? const LinearGradient(
+                                            colors: [Color(0xFF00BCD4), Color(0xFF4CAF50)],
+                                          )
+                                        : null,
+                                    color: isSelected ? null : Colors.grey.shade100,
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: isSelected ? Colors.transparent : Colors.grey.shade300,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        preset['icon'],
+                                        size: 14,
+                                        color: isSelected ? Colors.white : preset['color'],
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        preset['text'],
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                          color: isSelected ? Colors.white : const Color(0xFF333333),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                          const SizedBox(height: 20),
+                          
+                          // 自定义文本输入
+                          const Text(
+                            '自定义文本',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF666666),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(15),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: TextField(
+                              controller: textController,
+                              decoration: InputDecoration(
+                                hintText: '输入自定义水印文本',
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.all(16),
+                                suffixIcon: IconButton(
+                                  icon: const Icon(Icons.clear, size: 20),
+                                  onPressed: () {
+                                    textController.clear();
+                                    setModalState(() {
+                                      _watermarkText = '仅供身份验证使用';
+                                    });
+                                    setState(() {});
+                                  },
+                                ),
+                              ),
+                              onChanged: (value) {
+                                setModalState(() {
+                                  _watermarkText = value.isNotEmpty ? value : '仅供身份验证使用';
+                                });
+                                setState(() {});
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      const SizedBox(height: 24),
+                      
+                      // 样式设置分组
+                      _buildSettingGroup(
+                        '样式设置',
+                        Icons.palette,
+                        [
+                          // 字体大小
+                          _buildEnhancedSlider(
+                            '字体大小',
+                            Icons.format_size,
+                            _fontSize,
+                            12,
+                            48,
+                            '${_fontSize.round()}px',
+                            (value) {
+                              setModalState(() {
+                                _fontSize = value;
+                              });
+                              setState(() {});
+                            },
+                          ),
+                          
+                          // 透明度
+                          _buildEnhancedSlider(
+                            '透明度',
+                            Icons.opacity,
+                            _opacity,
+                            0.1,
+                            1.0,
+                            '${(_opacity * 100).round()}%',
+                            (value) {
+                              setModalState(() {
+                                _opacity = value;
+                              });
+                              setState(() {});
+                            },
+                          ),
+                          
+                          // 旋转角度
+                          _buildEnhancedSlider(
+                            '旋转角度',
+                            Icons.rotate_right,
+                            _rotation,
+                            -90,
+                            90,
+                            '${_rotation.round()}°',
+                            (value) {
+                              setModalState(() {
+                                _rotation = value;
+                              });
+                              setState(() {});
+                            },
+                          ),
+                          
+                          // 水印间距
+                          _buildEnhancedSlider(
+                            '水印间距',
+                            Icons.grid_3x3,
+                            _spacing,
+                            50,
+                            200,
+                            '${_spacing.round()}px',
+                            (value) {
+                              setModalState(() {
+                                _spacing = value;
+                              });
+                              setState(() {});
+                            },
+                          ),
+                          
+                          const SizedBox(height: 16),
+                          
+                          // 颜色选择
+                          const Text(
+                            '文字颜色',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF666666),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              // 红色选项
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () {
+                                    setModalState(() {
+                                      _textColor = Colors.red;
+                                    });
+                                    setState(() {});
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red,
+                                      borderRadius: BorderRadius.circular(15),
+                                      border: Border.all(
+                                        color: _textColor == Colors.red ? const Color(0xFF00BCD4) : Colors.transparent,
+                                        width: 3,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.red.withOpacity(0.3),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        const Icon(Icons.circle, color: Colors.white, size: 16),
+                                        const SizedBox(width: 8),
+                                        const Text(
+                                          '红色',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        if (_textColor == Colors.red) ...[
+                                          const SizedBox(width: 8),
+                                          const Icon(Icons.check, color: Colors.white, size: 16),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              // 黑色选项
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () {
+                                    setModalState(() {
+                                      _textColor = Colors.black;
+                                    });
+                                    setState(() {});
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black,
+                                      borderRadius: BorderRadius.circular(15),
+                                      border: Border.all(
+                                        color: _textColor == Colors.black ? const Color(0xFF00BCD4) : Colors.transparent,
+                                        width: 3,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.3),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        const Icon(Icons.circle, color: Colors.white, size: 16),
+                                        const SizedBox(width: 8),
+                                        const Text(
+                                          '黑色',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        if (_textColor == Colors.black) ...[
+                                          const SizedBox(width: 8),
+                                          const Icon(Icons.check, color: Colors.white, size: 16),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      
+                      const SizedBox(height: 100), // 底部留白
+                    ],
+                  ),
+                ),
+              ),
+              
+              // 底部按钮
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, -5),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          side: const BorderSide(color: Color(0xFF00BCD4)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(25),
+                          ),
+                        ),
+                        child: const Text(
+                          '取消',
+                          style: TextStyle(
+                            color: Color(0xFF00BCD4),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      flex: 2,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF00BCD4), Color(0xFF4CAF50)],
+                          ),
+                          borderRadius: BorderRadius.circular(25),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF00BCD4).withOpacity(0.4),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: ElevatedButton.icon(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.check, color: Colors.white),
+                          label: const Text(
+                            '应用设置',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(25),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 设置分组组件
+  Widget _buildSettingGroup(String title, IconData icon, List<Widget> children) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF00BCD4), Color(0xFF4CAF50)],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: Colors.white, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF333333),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  // 增强版滑块组件
+  Widget _buildEnhancedSlider(
+    String title,
+    IconData icon,
+    double value,
+    double min,
+    double max,
+    String displayValue,
+    Function(double) onChanged,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 18, color: const Color(0xFF00BCD4)),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF666666),
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF00BCD4), Color(0xFF4CAF50)],
+                  ),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Text(
+                  displayValue,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: const Color(0xFF00BCD4),
+              inactiveTrackColor: Colors.grey.shade300,
+              thumbColor: const Color(0xFF4CAF50),
+              overlayColor: const Color(0xFF4CAF50).withOpacity(0.2),
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 12),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 20),
+              trackHeight: 6,
+            ),
+            child: Slider(
+              value: value,
+              min: min,
+              max: max,
+              divisions: title == '透明度' ? 9 : (title.contains('角度') ? 36 : 36),
+              onChanged: onChanged,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
