@@ -276,13 +276,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 color: Color(0xFF333333),
               ),
             ),
-            subtitle: Text(
-              '个性化设置和偏好',
-              style: TextStyle(
-                color: Colors.grey.shade600,
-                fontSize: 14,
-              ),
-            ),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
             onTap: () {
               ScaffoldMessenger.of(context).showSnackBar(
