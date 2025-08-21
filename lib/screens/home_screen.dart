@@ -1,0 +1,769 @@
+import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:image/image.dart' as img;
+import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../models/watermark_history.dart';
+import '../widgets/watermark_preview.dart';
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+  File? _selectedImage;
+  final ImagePicker _picker = ImagePicker();
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  
+  // 水印设置
+  String _watermarkText = '仅供身份验证使用';
+  double _fontSize = 24.0;
+  Color _textColor = Colors.red;
+  double _opacity = 0.7;
+  double _rotation = -30.0;
+  
+  // 预设水印文本
+  final List<Map<String, dynamic>> _presetTexts = [
+    {'text': '仅供身份验证使用', 'icon': Icons.verified_user, 'color': Colors.red},
+    {'text': '仅供办理XX业务使用', 'icon': Icons.business, 'color': Colors.orange},
+    {'text': '仅供银行开户使用', 'icon': Icons.account_balance, 'color': Colors.blue},
+    {'text': '仅供贷款申请使用', 'icon': Icons.monetization_on, 'color': Colors.green},
+    {'text': '机密', 'icon': Icons.security, 'color': Colors.red},
+    {'text': '保密', 'icon': Icons.lock, 'color': Colors.purple},
+    {'text': '隐私保护', 'icon': Icons.privacy_tip, 'color': Colors.indigo},
+    {'text': '复印件无效', 'icon': Icons.content_copy, 'color': Colors.grey},
+  ];
+  
+  final GlobalKey _previewKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    ));
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFFF8FFFE), Color(0xFFE8F5E8)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SafeArea(
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // 标题区域
+                  _buildHeader(),
+                  const SizedBox(height: 30),
+                  
+                  // 图片选择区域
+                  _buildImageSelector(),
+                  const SizedBox(height: 25),
+                  
+                  // 水印预览区域
+                  if (_selectedImage != null) ...[
+                    _buildWatermarkPreview(),
+                    const SizedBox(height: 25),
+                    
+                    // 水印设置区域
+                    _buildWatermarkSettings(),
+                    const SizedBox(height: 30),
+                    
+                    // 下载按钮
+                    _buildDownloadButton(),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF00BCD4), Color(0xFF4CAF50)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF00BCD4).withOpacity(0.3),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.shield,
+                    color: Colors.white,
+                    size: 32,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '超级水印',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      '隐私守护·安全可靠',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImageSelector() {
+    return Container(
+      height: 220,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.white,
+            Colors.grey.shade50,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFF00BCD4).withOpacity(0.3),
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: _selectedImage == null
+          ? InkWell(
+              onTap: _pickImage,
+              borderRadius: BorderRadius.circular(18),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF00BCD4), Color(0xFF4CAF50)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(50),
+                    ),
+                    child: const Icon(
+                      Icons.add_photo_alternate,
+                      size: 48,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    '点击选择图片',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF333333),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '支持身份证、证件照等重要文件',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: Image.file(
+                    _selectedImage!,
+                    width: double.infinity,
+                    height: double.infinity,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () {
+                        setState(() {
+                          _selectedImage = null;
+                        });
+                      },
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 12,
+                  left: 12,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF00BCD4), Color(0xFF4CAF50)],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.edit, color: Colors.white),
+                      onPressed: _pickImage,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildWatermarkPreview() {
+    return Container(
+      height: 320,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFF00BCD4).withOpacity(0.3),
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: RepaintBoundary(
+          key: _previewKey,
+          child: WatermarkPreview(
+            image: _selectedImage!,
+            watermarkText: _watermarkText,
+            fontSize: _fontSize,
+            textColor: _textColor,
+            opacity: _opacity,
+            rotation: _rotation,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWatermarkSettings() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF00BCD4), Color(0xFF4CAF50)],
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.tune,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  '水印设置',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF333333),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            
+            // 预设文本选择
+            const Text(
+              '预设模板',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF333333),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: _presetTexts.map((preset) {
+                final isSelected = _watermarkText == preset['text'];
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _watermarkText = preset['text'];
+                      _textColor = preset['color'];
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      gradient: isSelected
+                          ? const LinearGradient(
+                              colors: [Color(0xFF00BCD4), Color(0xFF4CAF50)],
+                            )
+                          : null,
+                      color: isSelected ? null : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(25),
+                      border: Border.all(
+                        color: isSelected
+                            ? Colors.transparent
+                            : Colors.grey.shade300,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          preset['icon'],
+                          size: 16,
+                          color: isSelected ? Colors.white : preset['color'],
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          preset['text'],
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: isSelected ? Colors.white : Color(0xFF333333),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 24),
+            
+            // 自定义文本输入
+            const Text(
+              '自定义文本',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF333333),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: TextField(
+                decoration: const InputDecoration(
+                  hintText: '输入自定义水印文本',
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.all(16),
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _watermarkText = value.isNotEmpty ? value : '仅供身份验证使用';
+                  });
+                },
+              ),
+            ),
+            const SizedBox(height: 24),
+            
+            // 滑块控制区域
+            _buildSliderSection('字体大小', _fontSize, 12, 48, (value) {
+              setState(() {
+                _fontSize = value;
+              });
+            }, '${_fontSize.round()}px'),
+            
+            _buildSliderSection('透明度', _opacity, 0.1, 1.0, (value) {
+              setState(() {
+                _opacity = value;
+              });
+            }, '${(_opacity * 100).round()}%'),
+            
+            _buildSliderSection('旋转角度', _rotation, -90, 90, (value) {
+              setState(() {
+                _rotation = value;
+              });
+            }, '${_rotation.round()}°'),
+            
+            const SizedBox(height: 16),
+            
+            // 颜色选择
+            Row(
+              children: [
+                const Text(
+                  '文字颜色',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF333333),
+                  ),
+                ),
+                const SizedBox(width: 20),
+                GestureDetector(
+                  onTap: _showColorPicker,
+                  child: Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: _textColor,
+                      borderRadius: BorderRadius.circular(25),
+                      border: Border.all(color: Colors.grey.shade300, width: 2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _textColor.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.palette,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSliderSection(String title, double value, double min, double max, Function(double) onChanged, String displayValue) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF333333),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF00BCD4), Color(0xFF4CAF50)],
+                  ),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Text(
+                  displayValue,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: const Color(0xFF00BCD4),
+              inactiveTrackColor: Colors.grey.shade300,
+              thumbColor: const Color(0xFF4CAF50),
+              overlayColor: const Color(0xFF4CAF50).withOpacity(0.2),
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 12),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 20),
+            ),
+            child: Slider(
+              value: value,
+              min: min,
+              max: max,
+              divisions: title == '透明度' ? 9 : (title == '旋转角度' ? 36 : 36),
+              onChanged: onChanged,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDownloadButton() {
+    return Container(
+      height: 60,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF00BCD4), Color(0xFF4CAF50)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF00BCD4).withOpacity(0.4),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: ElevatedButton.icon(
+        onPressed: _downloadImage,
+        icon: const Icon(Icons.download, color: Colors.white, size: 24),
+        label: const Text(
+          '一键下载',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickImage() async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      setState(() {
+        _selectedImage = File(image.path);
+      });
+    }
+  }
+
+  void _showColorPicker() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('选择颜色'),
+          content: SingleChildScrollView(
+            // child: ColorPicker(
+            //   pickerColor: _textColor,
+            //   onColorChanged: (color) {
+            //     setState(() {
+            //       _textColor = color;
+            //     });
+            //   },
+            // ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('确定'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _downloadImage() async {
+    try {
+      // 显示加载对话框
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // 捕获水印预览
+      RenderRepaintBoundary boundary = _previewKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      Uint8List pngBytes = byteData!.buffer.asUint8List();
+
+      // 保存到临时目录
+      final directory = await getTemporaryDirectory();
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final file = File('${directory.path}/watermark_$timestamp.png');
+      await file.writeAsBytes(pngBytes);
+      //
+      // // 保存到相册
+      // final result = await GallerySaver.saveImage(file.path);
+      //
+      // // 保存到历史记录
+      // await _saveToHistory(file.path);
+      //
+      // // 关闭加载对话框
+      // Navigator.of(context).pop();
+      //
+      // // 显示成功消息
+      // if (result == true) {
+      //   ScaffoldMessenger.of(context).showSnackBar(
+      //     SnackBar(
+      //       content: const Text('图片已保存到相册'),
+      //       backgroundColor: const Color(0xFF4CAF50),
+      //       behavior: SnackBarBehavior.floating,
+      //       shape: RoundedRectangleBorder(
+      //         borderRadius: BorderRadius.circular(10),
+      //       ),
+      //     ),
+      //   );
+      // } else {
+      //   ScaffoldMessenger.of(context).showSnackBar(
+      //     SnackBar(
+      //       content: const Text('保存失败，请检查权限设置'),
+      //       backgroundColor: Colors.red,
+      //       behavior: SnackBarBehavior.floating,
+      //       shape: RoundedRectangleBorder(
+      //         borderRadius: BorderRadius.circular(10),
+      //       ),
+      //     ),
+      //   );
+      // }
+    } catch (e) {
+      // 关闭加载对话框
+      Navigator.of(context).pop();
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('保存失败: $e'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _saveToHistory(String imagePath) async {
+    final prefs = await SharedPreferences.getInstance();
+    final history = WatermarkHistory(
+      imagePath: imagePath,
+      watermarkText: _watermarkText,
+      timestamp: DateTime.now(),
+    );
+    
+    List<String> historyList = prefs.getStringList('watermark_history') ?? [];
+    historyList.insert(0, history.toJson());
+    
+    // 只保留最近50条记录
+    if (historyList.length > 50) {
+      historyList = historyList.take(50).toList();
+    }
+    
+    await prefs.setStringList('watermark_history', historyList);
+  }
+}
