@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -11,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/watermark_history.dart';
 import '../widgets/watermark_preview.dart';
+import '../utils/watermark_painter.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -89,42 +91,45 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         child: SafeArea(
           child: FadeTransition(
             opacity: _fadeAnimation,
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // // 标题区域
-                  // _buildHeader(),
-                  // const SizedBox(height: 30),
-                  // 图片选择区域
-                  if(_selectedImage==null)
-                    _buildImageSelector(),
-
-                  const SizedBox(height: 8),
-                  // 水印预览区域
-                  if (_selectedImage != null) ...[
-                    _buildWatermarkPreview(),
-                    const SizedBox(height: 8),
-                    // 水印设置区域
-                    _buildWatermarkSettings(),
-                    // 下载按钮
-                    Row(
-                      children: [
-                        Expanded(
-                          flex: 2, // 占据2份空间
-                          child: _buildImageSelectorButton(),
-                        ),
-                        const SizedBox(width: 16), // 两个按钮之间的间距
-                        Expanded(
-                          flex: 3, // 占据3份空间
-                          child: _buildDownloadButton(),
-                        ),
-                      ],
-                    )
-                  ],
-                ],
-              ),
-            ),
+            child: _selectedImage == null
+                ? // 没有选择图片时，显示居中的选择界面
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(0.0),
+                      child: _buildImageSelector(),
+                    ),
+                  )
+                : // 选择图片后，显示正常的滚动布局
+                  SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // 水印预览区域
+                          _buildWatermarkPreview(),
+                          const SizedBox(height: 8),
+                          // 水印设置区域
+                          _buildWatermarkSettings(),
+                          const SizedBox(height: 8),
+                          // 下载按钮
+                          Row(
+                            children: [
+                              Expanded(
+                                flex: 2, // 占据2份空间
+                                child: _buildImageSelectorButton(),
+                              ),
+                              const SizedBox(width: 16), // 两个按钮之间的间距
+                              Expanded(
+                                flex: 3, // 占据3份空间
+                                child: _buildDownloadButton(),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
           ),
         ),
       ),
@@ -247,7 +252,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildImageSelector() {
     return Container(
-      height: 220,
+      width:double.infinity,
+      height: _selectedImage == null ? 300 : 220,
+      padding: const EdgeInsets.all(16),// 居中显示时增加高度
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -293,23 +300,46 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       color: Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  const Text(
+                  const SizedBox(height: 24),
+                  Text(
                     '点击选择图片',
                     style: TextStyle(
-                      fontSize: 20,
+                      fontSize: _selectedImage == null ? 24 : 20, // 居中时字体更大
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF333333),
+                      color: const Color(0xFF333333),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   Text(
                     '支持身份证、证件照等重要文件',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: _selectedImage == null ? 16 : 14, // 居中时字体更大
                       color: Colors.grey.shade600,
                     ),
+                    textAlign: TextAlign.center,
                   ),
+                  if (_selectedImage == null) ...[  // 只在居中显示时显示额外提示
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF00BCD4).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: const Color(0xFF00BCD4).withOpacity(0.3),
+                        ),
+                      ),
+                      child: const Text(
+                        '为您的重要文件添加安全水印',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF00BCD4),
+                          fontWeight: FontWeight.w500,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             )
@@ -383,17 +413,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(18),
-        child: RepaintBoundary(
-          key: _previewKey,
-          child: WatermarkPreview(
-            image: _selectedImage!,
-            watermarkText: _watermarkText,
-            fontSize: _fontSize,
-            textColor: _textColor,
-            opacity: _opacity,
-            rotation: _rotation,
-            spacing: _spacing,
-            mode: WatermarkMode.tile,
+        child: Center(
+          child: RepaintBoundary(
+            key: _previewKey,
+            child: Container(
+              color: Colors.transparent,
+              child: WatermarkPreview(
+                image: _selectedImage!,
+                watermarkText: _watermarkText,
+                fontSize: _fontSize,
+                textColor: _textColor,
+                opacity: _opacity,
+                rotation: _rotation,
+                spacing: _spacing,
+                mode: WatermarkMode.tile,
+              ),
+            ),
           ),
         ),
       ),
@@ -782,16 +817,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
       );
 
-      // 捕获水印预览
-      RenderRepaintBoundary boundary = _previewKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
-      ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      Uint8List pngBytes = byteData!.buffer.asUint8List();
+      // 直接使用图片处理方式生成水印图片，避免RepaintBoundary的黑边问题
+      final Uint8List watermarkedImageBytes = await _generateWatermarkImage();
 
       // 使用 image_gallery_saver_plus 保存到相册
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final result = await ImageGallerySaverPlus.saveImage(
-        pngBytes,
+        watermarkedImageBytes,
         quality: 100,
         name: "watermark_$timestamp",
       );
@@ -799,7 +831,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       // 保存到本地文件用于历史记录
       final directory = await getTemporaryDirectory();
       final file = File('${directory.path}/watermark_$timestamp.png');
-      await file.writeAsBytes(pngBytes);
+      await file.writeAsBytes(watermarkedImageBytes);
 
       // 保存到历史记录
       await _saveToHistory(file.path);
@@ -866,6 +898,138 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       );
     }
   }
+
+  // 使用统一的水印绘制方法生成水印图片
+  Future<Uint8List> _generateWatermarkImage() async {
+    // 读取原始图片
+    final imageBytes = await _selectedImage!.readAsBytes();
+    final originalImage = await ui.instantiateImageCodec(imageBytes);
+    final frame = await originalImage.getNextFrame();
+    final image = frame.image;
+
+    // 计算字体缩放比例，确保与预览效果一致
+    final previewContainerHeight = 320.0; // 预览容器的固定高度
+    final imageAspectRatio = image.width / image.height;
+    final containerAspectRatio = MediaQuery.of(context).size.width / previewContainerHeight;
+    
+    double previewImageHeight;
+    if (imageAspectRatio > containerAspectRatio) {
+      // 图片更宽，以宽度为准
+      previewImageHeight = MediaQuery.of(context).size.width / imageAspectRatio;
+    } else {
+      // 图片更高，以高度为准
+      previewImageHeight = previewContainerHeight;
+    }
+    
+    // 计算缩放比例：原图高度 / 预览显示高度
+    final scaleFactor = image.height / previewImageHeight;
+    
+    // 使用与预览相同的水印绘制逻辑
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    
+    // 绘制背景图片
+    final paint = Paint();
+    canvas.drawImageRect(
+      image,
+      Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+      Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+      paint,
+    );
+    
+    // 使用与预览相同的水印绘制逻辑
+    if (_watermarkText.isNotEmpty) {
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: _watermarkText,
+          style: TextStyle(
+            fontSize: _fontSize * scaleFactor,
+            color: _textColor.withOpacity(_opacity),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+      textPainter.layout();
+      
+      // 使用与预览相同的平铺水印逻辑
+      _drawTileWatermarkForExport(canvas, textPainter, Size(image.width.toDouble(), image.height.toDouble()), _rotation, _spacing * scaleFactor);
+    }
+    
+    final picture = recorder.endRecording();
+    final watermarkedImage = await picture.toImage(image.width, image.height);
+    picture.dispose();
+    
+    // 转换为字节数组
+    final byteData = await watermarkedImage.toByteData(format: ui.ImageByteFormat.png);
+    return byteData!.buffer.asUint8List();
+  }
+  
+  // 与预览保持一致的平铺水印绘制方法
+  void _drawTileWatermarkForExport(Canvas canvas, TextPainter textPainter, Size imageSize, double rotation, double spacing) {
+    final textWidth = textPainter.width;
+    final textHeight = textPainter.height;
+    final rotationRad = rotation * pi / 180;
+
+    // 计算旋转后文本的边界框
+    final cosVal = cos(rotationRad).abs();
+    final sinVal = sin(rotationRad).abs();
+    final rotatedWidth = textWidth * cosVal + textHeight * sinVal;
+    final rotatedHeight = textWidth * sinVal + textHeight * cosVal;
+
+    // 计算水印间距
+    final baseVerticalSpacing = spacing;
+    final userHorizontalSpacing = spacing * 1.0;
+    
+    final minHorizontalSpacing = rotatedWidth + 20;
+    final minVerticalSpacing = rotatedHeight + 15;
+    
+    final horizontalSpacing = (minHorizontalSpacing > userHorizontalSpacing) 
+        ? minHorizontalSpacing 
+        : userHorizontalSpacing;
+    final verticalSpacing = (minVerticalSpacing > baseVerticalSpacing) 
+        ? minVerticalSpacing 
+        : baseVerticalSpacing;
+
+    // 计算网格数量
+    final cols = ((imageSize.width + rotatedWidth * 2) / horizontalSpacing).ceil() + 1;
+    final rows = ((imageSize.height + rotatedHeight * 2) / verticalSpacing).ceil() + 1;
+
+    // 计算起始位置，确保居中对齐
+    final totalWidth = (cols - 1) * horizontalSpacing;
+    final totalHeight = (rows - 1) * verticalSpacing;
+    final startX = (imageSize.width - totalWidth) / 2;
+    final startY = (imageSize.height - totalHeight) / 2;
+
+    for (int row = 0; row < rows; row++) {
+      for (int col = 0; col < cols; col++) {
+        // 计算精确位置
+        double x = startX + col * horizontalSpacing;
+        double y = startY + row * verticalSpacing;
+        
+        // 智能交错：只有在间距足够时才启用
+        final enableStagger = horizontalSpacing > minHorizontalSpacing * 1.2;
+        if (enableStagger && row % 2 == 1) {
+          x += horizontalSpacing * 0.5;
+        }
+
+        // 检查是否在图片区域内
+        if (x >= -rotatedWidth/2 && 
+            x <= imageSize.width - rotatedWidth/2 &&
+            y >= -rotatedHeight/2 && 
+            y <= imageSize.height - rotatedHeight/2) {
+          
+          canvas.save();
+          canvas.translate(x + textWidth / 2, y + textHeight / 2);
+          canvas.rotate(rotationRad);
+          canvas.translate(-textWidth / 2, -textHeight / 2);
+          textPainter.paint(canvas, Offset.zero);
+          canvas.restore();
+        }
+      }
+    }
+  }
+
 
   Future<void> _saveToHistory(String imagePath) async {
     final prefs = await SharedPreferences.getInstance();
