@@ -1,8 +1,8 @@
 import 'dart:io';
-import 'dart:ui' as ui;
 import 'dart:math';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 enum WatermarkMode {
   tile,
@@ -177,45 +177,119 @@ class WatermarkPainter extends CustomPainter {
 
     return Rect.fromLTWH(offsetX, offsetY, displayWidth, displayHeight);
   }
-
   void _drawTileWatermark(Canvas canvas, TextPainter textPainter, Rect imageRect) {
     final textWidth = textPainter.width;
     final textHeight = textPainter.height;
-    
-    // 计算水印间距 - 主要控制上下间距
-    final verticalSpacing = spacing; // 垂直间距由用户直接控制
-    final horizontalSpacing = spacing * 1.0; // 水平间距为垂直间距的2倍
-    
-    // 计算需要绘制的行数和列数（扩展边界以确保完全覆盖）
     final rotationRad = rotation * pi / 180;
-    final expandedWidth = imageRect.width + textWidth * 2;
-    final expandedHeight = imageRect.height + textHeight * 2;
-    
-    final cols = (expandedWidth / horizontalSpacing).ceil() + 2;
-    final rows = (expandedHeight / verticalSpacing).ceil() + 2;
-    
-    // 起始偏移，确保水印居中分布
-    final startX = imageRect.left - textWidth;
-    final startY = imageRect.top - textHeight;
+
+// 计算旋转后文本的边界框
+    final cosVal = cos(rotationRad).abs();
+    final sinVal = sin(rotationRad).abs();
+    final rotatedWidth = textWidth * cosVal + textHeight * sinVal;
+    final rotatedHeight = textWidth * sinVal + textHeight * cosVal;
+
+// 计算水印间距 - 主要控制上下间距
+    final verticalSpacing = spacing; // 垂直间距由用户控制
+    final horizontalSpacing = spacing * 1.8; // 水平间距稍大一些
+
+// 计算网格数量，确保完全覆盖
+    final cols = ((imageRect.width + rotatedWidth * 2) / horizontalSpacing)
+        .ceil() + 1;
+    final rows = ((imageRect.height + rotatedHeight * 2) / verticalSpacing)
+        .ceil() + 1;
+
+// 计算起始位置，确保居中对齐
+    final totalWidth = (cols - 1) * horizontalSpacing;
+    final totalHeight = (rows - 1) * verticalSpacing;
+    final startX = imageRect.left + (imageRect.width - totalWidth) / 2;
+    final startY = imageRect.top + (imageRect.height - totalHeight) / 2;
 
     for (int row = 0; row < rows; row++) {
       for (int col = 0; col < cols; col++) {
-        // 计算基础位置
+// 计算精确位置 - 规律网格，无随机偏移
         double x = startX + col * horizontalSpacing;
         double y = startY + row * verticalSpacing;
-        
-        // 交错排列，让水印更自然
-        if (row % 2 == 1) {
+
+// // 奇偶行交错，形成砖墙效果
+// if (row % 2 == 1) {
+// x += horizontalSpacing * 0.5;
+// }
+
+// 检查是否在图片区域内（考虑旋转后的尺寸）
+        if (x >= imageRect.left - rotatedWidth / 2 &&
+            x <= imageRect.right - rotatedWidth / 2 &&
+            y >= imageRect.top - rotatedHeight / 2 &&
+            y <= imageRect.bottom - rotatedHeight / 2) {
+          canvas.save();
+          canvas.translate(x + textWidth / 2, y + textHeight / 2);
+          canvas.rotate(rotationRad);
+          canvas.translate(-textWidth / 2, -textHeight / 2);
+          textPainter.paint(canvas, Offset.zero);
+          canvas.restore();
+        }
+      }
+    }
+  }
+
+
+
+  void _drawTileWatermark1(Canvas canvas, TextPainter textPainter,
+      Rect imageRect) {
+    final textWidth = textPainter.width;
+    final textHeight = textPainter.height;
+    final rotationRad = rotation * pi / 180;
+
+    // 计算旋转后文本的边界框
+    final cosVal = cos(rotationRad).abs();
+    final sinVal = sin(rotationRad).abs();
+    final rotatedWidth = textWidth * cosVal + textHeight * sinVal;
+    final rotatedHeight = textWidth * sinVal + textHeight * cosVal;
+
+    // 智能间距计算 - 根据文字长度和旋转角度动态调整
+    final baseVerticalSpacing = spacing; // 垂直间距由用户控制
+
+    // 根据文字宽度动态调整水平间距，确保不重叠
+    final minHorizontalSpacing = rotatedWidth + 20; // 最小间距 = 旋转后宽度 + 20px缓冲
+    final userHorizontalSpacing = spacing * 1.8; // 用户期望的间距
+    final horizontalSpacing = (minHorizontalSpacing > userHorizontalSpacing)
+        ? minHorizontalSpacing
+        : userHorizontalSpacing;
+
+    // 根据文字高度动态调整垂直间距，确保不重叠
+    final minVerticalSpacing = rotatedHeight + 15; // 最小间距 = 旋转后高度 + 15px缓冲
+    final verticalSpacing = (minVerticalSpacing > baseVerticalSpacing)
+        ? minVerticalSpacing
+        : baseVerticalSpacing;
+
+    // 计算网格数量，确保完全覆盖
+    final cols = ((imageRect.width + rotatedWidth * 2) / horizontalSpacing)
+        .ceil() + 1;
+    final rows = ((imageRect.height + rotatedHeight * 2) / verticalSpacing)
+        .ceil() + 1;
+
+    // 计算起始位置，确保居中对齐
+    final totalWidth = (cols - 1) * horizontalSpacing;
+    final totalHeight = (rows - 1) * verticalSpacing;
+    final startX = imageRect.left + (imageRect.width - totalWidth) / 2;
+    final startY = imageRect.top + (imageRect.height - totalHeight) / 2;
+
+    for (int row = 0; row < rows; row++) {
+      for (int col = 0; col < cols; col++) {
+        // 计算精确位置 - 规律网格，无随机偏移
+        double x = startX + col * horizontalSpacing;
+        double y = startY + row * verticalSpacing;
+
+        // 奇偶行交错，形成砖墙效果（只有在间距足够时才交错）
+        if (row % 2 == 1 && horizontalSpacing > rotatedWidth * 1.5) {
           x += horizontalSpacing * 0.5;
         }
-        
-        // 添加微小的随机偏移，让水印看起来更自然
-        final randomOffset = _getRandomOffset(row, col);
-        x += randomOffset.dx;
-        y += randomOffset.dy;
 
-        // 检查是否在图片区域内
-        if (_isPositionInImageRect(x, y, textWidth, textHeight, imageRect)) {
+        // 检查是否在图片区域内（考虑旋转后的尺寸）
+        if (x >= imageRect.left - rotatedWidth / 2 &&
+            x <= imageRect.right - rotatedWidth / 2 &&
+            y >= imageRect.top - rotatedHeight / 2 &&
+            y <= imageRect.bottom - rotatedHeight / 2) {
+          
           canvas.save();
           canvas.translate(x + textWidth / 2, y + textHeight / 2);
           canvas.rotate(rotationRad);

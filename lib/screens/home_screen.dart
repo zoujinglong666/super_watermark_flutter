@@ -1,12 +1,13 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../models/watermark_history.dart';
 import '../widgets/watermark_preview.dart';
 
@@ -22,14 +23,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final ImagePicker _picker = ImagePicker();
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-  
+  final List<Map<String, dynamic>> _colorOptions = [
+    {'label': '红色', 'value': Colors.red},
+    {'label': '黑色', 'value': Colors.black},
+    {'label': '蓝色', 'value': Colors.blue},
+    {'label': '绿色', 'value': Colors.green},
+  ];
   // 水印设置
   String _watermarkText = '仅供身份验证使用';
-  double _fontSize = 24.0;
+  double _fontSize = 12.0;
   Color _textColor = Colors.red;
   double _opacity = 0.7;
   double _rotation = -30.0;
-  double _spacing = 100.0; // 水印间距
+  double _spacing = 50.0; // 水印间距
   
   // 预设水印文本
   final List<Map<String, dynamic>> _presetTexts = [
@@ -86,11 +92,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // 标题区域
-                  _buildHeader(),
-                  const SizedBox(height: 30),
+                  // // 标题区域
+                  // _buildHeader(),
+                  // const SizedBox(height: 30),
                   // 图片选择区域
-                  _buildImageSelector(),
+                  if(_selectedImage==null)
+                    _buildImageSelector(),
+
                   const SizedBox(height: 8),
                   // 水印预览区域
                   if (_selectedImage != null) ...[
@@ -98,14 +106,72 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     const SizedBox(height: 8),
                     // 水印设置区域
                     _buildWatermarkSettings(),
-                    const SizedBox(height: 30),
-                    
                     // 下载按钮
-                    _buildDownloadButton(),
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 2, // 占据2份空间
+                          child: _buildImageSelectorButton(),
+                        ),
+                        const SizedBox(width: 16), // 两个按钮之间的间距
+                        Expanded(
+                          flex: 3, // 占据3份空间
+                          child: _buildDownloadButton(),
+                        ),
+                      ],
+                    )
                   ],
                 ],
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImageSelectorButton() {
+    return Container(
+      height: 60,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF00BCD4), Color(0xFF4CAF50)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF00BCD4).withOpacity(0.4),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: ElevatedButton.icon(
+        onPressed: () async {
+          final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+          if (pickedFile != null) {
+            setState(() {
+              _selectedImage = File(pickedFile.path);
+            });
+          }
+        }
+        ,
+        icon: const Icon(Icons.download, color: Colors.white, size: 24),
+        label: const Text(
+          '选择文件',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
           ),
         ),
       ),
@@ -852,11 +918,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           onPressed: () {
                             setModalState(() {
                               _watermarkText = '仅供身份验证使用';
-                              _fontSize = 24.0;
+                              _fontSize = 12.0;
                               _textColor = Colors.red;
                               _opacity = 0.7;
                               _rotation = -30.0;
-                              _spacing = 100.0;
+                              _spacing = 50.0;
                               textController.text = _watermarkText;
                             });
                             setState(() {});
@@ -1053,7 +1119,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             Icons.grid_3x3,
                             _spacing,
                             50,
-                            200,
+                            100,
                             '${_spacing.round()}px',
                             (value) {
                               setModalState(() {
@@ -1062,10 +1128,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               setState(() {});
                             },
                           ),
-                          
-                          const SizedBox(height: 16),
-                          
-                          // 颜色选择
+                          const SizedBox(height: 8),
                           const Text(
                             '文字颜色',
                             style: TextStyle(
@@ -1075,109 +1138,78 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              // 红色选项
-                              Expanded(
-                                child: GestureDetector(
+// 使用 SingleChildScrollView 和 Row 实现横向滚动
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: _colorOptions.map((colorOption) {
+                                final isSelected = _textColor ==
+                                    colorOption['value'];
+                                return GestureDetector(
                                   onTap: () {
                                     setModalState(() {
-                                      _textColor = Colors.red;
+                                      _textColor = colorOption['value'];
                                     });
                                     setState(() {});
                                   },
                                   child: Container(
+                                    width: 100,
                                     padding: const EdgeInsets.all(16),
+                                    margin: EdgeInsets.only(
+                                      right: colorOption == _colorOptions.last
+                                          ? 0
+                                          : 12,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color: Colors.red,
+                                      color: colorOption['value'],
                                       borderRadius: BorderRadius.circular(15),
                                       border: Border.all(
-                                        color: _textColor == Colors.red ? const Color(0xFF00BCD4) : Colors.transparent,
+                                        color: isSelected ? const Color(
+                                            0xFF00BCD4) : Colors.transparent,
                                         width: 3,
                                       ),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.red.withOpacity(0.3),
+                                          color: colorOption['value']
+                                              .withOpacity(0.3),
                                           blurRadius: 8,
                                           offset: const Offset(0, 4),
                                         ),
                                       ],
                                     ),
                                     child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisSize: MainAxisSize.min,
+                                      mainAxisAlignment: MainAxisAlignment
+                                          .center,
                                       children: [
-                                        const Icon(Icons.circle, color: Colors.white, size: 16),
+                                        Icon(Icons.circle, color: Colors.white,
+                                            size: 16),
                                         const SizedBox(width: 8),
-                                        const Text(
-                                          '红色',
-                                          style: TextStyle(
+                                        Text(
+                                          colorOption['label'],
+                                          style: const TextStyle(
                                             color: Colors.white,
                                             fontWeight: FontWeight.w600,
+                                            fontSize: 12,
                                           ),
                                         ),
-                                        if (_textColor == Colors.red) ...[
+                                        if (isSelected) ...[
                                           const SizedBox(width: 8),
-                                          const Icon(Icons.check, color: Colors.white, size: 16),
+                                          const Icon(
+                                              Icons.check, color: Colors.white,
+                                              size: 16),
                                         ],
                                       ],
                                     ),
                                   ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              // 黑色选项
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () {
-                                    setModalState(() {
-                                      _textColor = Colors.black;
-                                    });
-                                    setState(() {});
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black,
-                                      borderRadius: BorderRadius.circular(15),
-                                      border: Border.all(
-                                        color: _textColor == Colors.black ? const Color(0xFF00BCD4) : Colors.transparent,
-                                        width: 3,
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.3),
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 4),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        const Icon(Icons.circle, color: Colors.white, size: 16),
-                                        const SizedBox(width: 8),
-                                        const Text(
-                                          '黑色',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        if (_textColor == Colors.black) ...[
-                                          const SizedBox(width: 8),
-                                          const Icon(Icons.check, color: Colors.white, size: 16),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
+                                );
+                              }).toList(),
+                            ),
                           ),
+
                         ],
                       ),
-                      
-                      const SizedBox(height: 100), // 底部留白
+
                     ],
                   ),
                 ),
