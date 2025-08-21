@@ -12,7 +12,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/watermark_history.dart';
 import '../widgets/watermark_preview.dart';
-import '../utils/watermark_painter.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -39,6 +38,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   double _opacity = 0.7;
   double _rotation = -30.0;
   double _spacing = 50.0; // 水印间距
+  bool _isDownloading = false; // 下载状态
   
   // 预设水印文本
   final List<Map<String, dynamic>> _presetTexts = [
@@ -102,16 +102,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 : // 选择图片后，显示正常的滚动布局
                   SingleChildScrollView(
                     child: Padding(
-                      padding: const EdgeInsets.all(8.0),
+                      padding: const EdgeInsets.all(20.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           // 水印预览区域
                           _buildWatermarkPreview(),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 20),
                           // 水印设置区域
                           _buildWatermarkSettings(),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 20),
                           // 下载按钮
                           Row(
                             children: [
@@ -164,11 +164,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           }
         }
         ,
-        icon: const Icon(Icons.download, color: Colors.white, size: 24),
+        icon: const Icon(Icons.download, color: Colors.white, size: 18),
         label: const Text(
           '选择文件',
           style: TextStyle(
-            fontSize: 18,
+            fontSize: 14,
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
@@ -401,7 +401,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: const Color(0xFF00BCD4).withOpacity(0.3),
-          width: 2,
+          width: 1,
         ),
         boxShadow: [
           BoxShadow(
@@ -427,6 +427,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 rotation: _rotation,
                 spacing: _spacing,
                 mode: WatermarkMode.tile,
+                showLoadingIndicator: !_isDownloading,
               ),
             ),
           ),
@@ -522,7 +523,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ],
           ),
           const SizedBox(height: 20),
-          
           // 当前设置预览卡片
           Container(
             padding: const EdgeInsets.all(16),
@@ -680,31 +680,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Container(
       height: 60,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF00BCD4), Color(0xFF4CAF50)],
+        gradient: LinearGradient(
+          colors: _isDownloading 
+              ? [Colors.grey.shade400, Colors.grey.shade500]
+              : [const Color(0xFF00BCD4), const Color(0xFF4CAF50)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF00BCD4).withOpacity(0.4),
+            color: (_isDownloading ? Colors.grey : const Color(0xFF00BCD4)).withOpacity(0.4),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
         ],
       ),
-      child: ElevatedButton.icon(
-        onPressed: _downloadImage,
-        icon: const Icon(Icons.download, color: Colors.white, size: 24),
-        label: const Text(
-          '一键下载',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
+      child: ElevatedButton(
+        onPressed: _isDownloading ? null : _downloadImage,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,
           shadowColor: Colors.transparent,
@@ -712,6 +705,44 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             borderRadius: BorderRadius.circular(30),
           ),
         ),
+        child: _isDownloading
+            ? Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3,
+                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    '处理中...',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              )
+            : const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.download, color: Colors.white, size: 24),
+                  SizedBox(width: 8),
+                  Text(
+                    '一键下载',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }
@@ -805,18 +836,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
 
   Future<void> _downloadImage() async {
-    try {
-      // 显示加载对话框
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00BCD4)),
-          ),
-        ),
-      );
+    if (_isDownloading) return;
+    
+    setState(() {
+      _isDownloading = true;
+    });
 
+    try {
       // 直接使用图片处理方式生成水印图片，避免RepaintBoundary的黑边问题
       final Uint8List watermarkedImageBytes = await _generateWatermarkImage();
 
@@ -824,7 +850,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final result = await ImageGallerySaverPlus.saveImage(
         watermarkedImageBytes,
-        quality: 100,
+        quality:85,
         name: "watermark_$timestamp",
       );
 
@@ -835,9 +861,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
       // 保存到历史记录
       await _saveToHistory(file.path);
-
-      // 关闭加载对话框
-      Navigator.of(context).pop();
 
       // 显示成功消息
       if (result['isSuccess'] == true) {
@@ -877,9 +900,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         );
       }
     } catch (e) {
-      // 关闭加载对话框
-      Navigator.of(context).pop();
-      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -896,6 +916,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ),
       );
+    } finally {
+      setState(() {
+        _isDownloading = false;
+      });
     }
   }
 
@@ -1260,7 +1284,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             '字体大小',
                             Icons.format_size,
                             _fontSize,
-                            12,
+                            8,
                             48,
                             '${_fontSize.round()}px',
                             (value) {

@@ -9,7 +9,7 @@ enum WatermarkMode {
   diagonal,
 }
 
-class WatermarkPreview extends StatelessWidget {
+class WatermarkPreview extends StatefulWidget {
   final File image;
   final String watermarkText;
   final double fontSize;
@@ -18,6 +18,7 @@ class WatermarkPreview extends StatelessWidget {
   final double rotation;
   final double? spacing;
   final WatermarkMode mode;
+  final bool showLoadingIndicator;
 
   const WatermarkPreview({
     super.key,
@@ -29,75 +30,133 @@ class WatermarkPreview extends StatelessWidget {
     this.rotation = -30,
     this.spacing,
     this.mode = WatermarkMode.tile,
+    this.showLoadingIndicator = true,
   });
 
   @override
+  State<WatermarkPreview> createState() => _WatermarkPreviewState();
+}
+
+class _WatermarkPreviewState extends State<WatermarkPreview> {
+  ui.Image? _cachedImage;
+  bool _isLoading = true;
+  String? _lastImagePath;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadImage();
+  }
+
+  @override
+  void didUpdateWidget(WatermarkPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 只有当图片路径改变时才重新加载
+    if (widget.image.path != _lastImagePath) {
+      _loadImage();
+    }
+  }
+
+  Future<void> _loadImage() async {
+    try {
+      _lastImagePath = widget.image.path;
+      final image = await _loadImageFromFile(widget.image);
+      if (mounted) {
+        setState(() {
+          _cachedImage = image;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return FutureBuilder<ui.Image>(
-      future: _loadImageFromFile(image),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00BCD4)),
-            ),
-          );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (_isLoading) {
+          if (widget.showLoadingIndicator) {
+            return const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00BCD4)),
+              ),
+            );
+          } else {
+            // 不显示loading时，显示当前图片作为占位
+            return Container(
+              width: constraints.maxWidth,
+              height: constraints.maxHeight,
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  image: FileImage(widget.image),
+                  fit: BoxFit.contain,
+                ),
+              ),
+            );
+          }
         }
 
-        if (snapshot.hasError || !snapshot.hasData) {
+        if (_cachedImage == null) {
           return const Center(
             child: Text('加载图片失败'),
           );
         }
 
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            return Stack(
-              children: [
-                // 背景图片
-                Container(
-                  width: constraints.maxWidth,
-                  height: constraints.maxHeight,
-                  decoration: BoxDecoration(
-                    image: DecorationImage(
-                      image: FileImage(image),
-                      fit: BoxFit.contain,
-                    ),
-                  ),
+        return Stack(
+          children: [
+            // 背景图片
+            Container(
+              width: constraints.maxWidth,
+              height: constraints.maxHeight,
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  image: FileImage(widget.image),
+                  fit: BoxFit.contain,
                 ),
-                // 水印层
-                Positioned.fill(
-                  child: CustomPaint(
-                    painter: _UnifiedWatermarkPainter(
-                      backgroundImage: snapshot.data!,
-                      watermarkText: watermarkText,
-                      fontSize: fontSize,
-                      textColor: textColor,
-                      opacity: opacity,
-                      rotation: rotation,
-                      spacing: spacing ?? _calculateDefaultSpacing(),
-                      containerSize: Size(constraints.maxWidth, constraints.maxHeight),
-                      mode: mode,
-                    ),
-                  ),
+              ),
+            ),
+            // 水印层
+            Positioned.fill(
+              child: CustomPaint(
+                painter: _UnifiedWatermarkPainter(
+                  backgroundImage: _cachedImage!,
+                  watermarkText: widget.watermarkText,
+                  fontSize: widget.fontSize,
+                  textColor: widget.textColor,
+                  opacity: widget.opacity,
+                  rotation: widget.rotation,
+                  spacing: widget.spacing ?? _calculateDefaultSpacing(),
+                  containerSize: Size(constraints.maxWidth, constraints.maxHeight),
+                  mode: widget.mode,
                 ),
-              ],
-            );
-          },
+              ),
+            ),
+          ],
         );
       },
     );
   }
 
   double _calculateDefaultSpacing() {
-    return max(50.0, fontSize * 2.5);
+    return max(50.0, widget.fontSize * 2.5);
   }
 
   Future<ui.Image> _loadImageFromFile(File file) async {
-    final bytes = await file.readAsBytes();
-    final codec = await ui.instantiateImageCodec(bytes);
-    final frame = await codec.getNextFrame();
-    return frame.image;
+    try {
+      final bytes = await file.readAsBytes();
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      return frame.image;
+    } catch (e) {
+      // 重新抛出异常，让调用方处理
+      rethrow;
+    }
   }
 }
 
@@ -205,7 +264,7 @@ class _UnifiedWatermarkPainter extends CustomPainter {
           x += horizontalSpacing * 0.5;
         }
 
-        // 检查是否在图片区域内
+        // 检查是否在图片区域内 - 使用与导出相同的边界检查逻辑
         if (x >= imageRect.left - rotatedWidth/2 && 
             x <= imageRect.right - rotatedWidth/2 &&
             y >= imageRect.top - rotatedHeight/2 && 
