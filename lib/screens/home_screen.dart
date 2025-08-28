@@ -4,7 +4,6 @@ import 'dart:ui' as ui;
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:path_provider/path_provider.dart';
@@ -141,7 +140,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ? // 没有选择图片时，显示居中的选择界面
                   Center(
                     child: Padding(
-                      padding: const EdgeInsets.all(0.0),
+                      padding: const EdgeInsets.all(20.0),
                       child: _buildImageSelector(),
                     ),
                   )
@@ -300,32 +299,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildImageSelector() {
-    return Container(
+    return SizedBox(
       width:double.infinity,
-      height: _selectedImage == null ? 300 : 220,
-      padding: const EdgeInsets.all(16),// 居中显示时增加高度
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.white,
-            Colors.grey.shade50,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: const Color(0xFF00BCD4).withOpacity(0.3),
-          width: 2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
       child: _selectedImage == null
           ? InkWell(
               onTap: _pickImage,
