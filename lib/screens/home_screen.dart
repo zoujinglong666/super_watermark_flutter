@@ -183,49 +183,53 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildImageSelectorButton() {
     return Container(
-      height: 60,
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF00BCD4), Color(0xFF4CAF50)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(25),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF00BCD4).withOpacity(0.4),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
+            color: const Color(0xFF00BCD4).withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: ElevatedButton.icon(
-        onPressed: () async {
-          final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-          if (pickedFile != null) {
-            setState(() {
-              _selectedImage = File(pickedFile.path);
-              _isImageLoading = true;
-              _cachedImage = null;
-            });
-            await _loadImageToMemory();
-          }
-        }
-        ,
-        icon: const Icon(Icons.download, color: Colors.white, size: 18),
-        label: const Text(
-          '选择文件',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(30),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(25),
+          onTap: () async {
+            final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+            if (pickedFile != null) {
+              setState(() {
+                _selectedImage = File(pickedFile.path);
+                _isImageLoading = true;
+                _cachedImage = null;
+              });
+              await _loadImageToMemory();
+            }
+          },
+          child: const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.download, color: Colors.white, size: 18),
+                SizedBox(width: 8),
+                Text(
+                  '选择文件',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -785,7 +789,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildDownloadButton() {
     return Container(
-      height: 60,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: _isDownloading 
@@ -794,62 +797,62 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(25),
         boxShadow: [
           BoxShadow(
-            color: (_isDownloading ? Colors.grey : const Color(0xFF00BCD4)).withOpacity(0.4),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
+            color: (_isDownloading ? Colors.grey : const Color(0xFF00BCD4)).withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: ElevatedButton(
-        onPressed: _isDownloading ? null : _downloadImage,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(30),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(25),
+          onTap: _isDownloading ? null : _downloadImage,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            child: _isDownloading
+                ? Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 3,
+                          valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        '处理中...',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  )
+                : const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.download, color: Colors.white, size: 18),
+                      SizedBox(width: 8),
+                      Text(
+                        '一键下载',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
           ),
         ),
-        child: _isDownloading
-            ? Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 3,
-                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    '处理中...',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              )
-            : const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.download, color: Colors.white, size: 24),
-                  SizedBox(width: 8),
-                  Text(
-                    '一键下载',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
       ),
     );
   }
