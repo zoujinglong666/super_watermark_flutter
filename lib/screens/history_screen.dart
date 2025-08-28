@@ -11,23 +11,37 @@ class HistoryScreen extends StatefulWidget {
   State<HistoryScreen> createState() => _HistoryScreenState();
 }
 
-class _HistoryScreenState extends State<HistoryScreen> {
+class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProviderStateMixin {
   List<WatermarkHistory> _historyList = [];
   bool _isLoading = true;
   Set<int> _downloadingItems = {}; // 记录正在下载的项目索引
+  late AnimationController _animationController;
 
   @override
   void initState() {
     super.initState();
+    // 初始化动画控制器
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
     // 立即加载历史数据，不显示加载状态
     _loadHistoryImmediately();
+    // 确保动画控制器初始化后立即启动
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadHistoryImmediately() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final historyStrings = prefs.getStringList('watermark_history') ?? [];
-      
+
       setState(() {
         _historyList = historyStrings
             .map((str) => WatermarkHistory.fromJson(str))
@@ -46,7 +60,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final historyStrings = prefs.getStringList('watermark_history') ?? [];
-      
+
       setState(() {
         _historyList = historyStrings
             .map((str) => WatermarkHistory.fromJson(str))
@@ -63,15 +77,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final historyStrings = prefs.getStringList('watermark_history') ?? [];
-      
+
       if (index < historyStrings.length) {
         historyStrings.removeAt(index);
         await prefs.setStringList('watermark_history', historyStrings);
-        
+
         setState(() {
           _historyList.removeAt(index);
         });
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('历史记录已删除'),
@@ -121,11 +135,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
       try {
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove('watermark_history');
-        
+
         setState(() {
           _historyList.clear();
         });
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('所有历史记录已清空'),
@@ -168,71 +182,92 @@ class _HistoryScreenState extends State<HistoryScreen> {
               // 标题栏
               Container(
                 padding: const EdgeInsets.all(20),
-                child: Row(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF00BCD4), Color(0xFF4CAF50)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF00BCD4).withOpacity(0.3),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Column(
                   children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
+                    Row(
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(15),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                      child: IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.arrow_back, color: Color(0xFF00BCD4)),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            '历史记录',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF333333),
-                            ),
+                          child: IconButton(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.arrow_back, color: Color(0xFF00BCD4)),
+                            iconSize: 22,
                           ),
-                          Text(
-                            '共 ${_historyList.length} 条记录',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (_historyList.isNotEmpty)
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
                         ),
-                        child: IconButton(
-                          onPressed: _clearAllHistory,
-                          icon: const Icon(Icons.delete_sweep, color: Colors.red),
-                          tooltip: '清空所有记录',
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                '历史记录',
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              Text(
+                                '共 ${_historyList.length} 条记录',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.white70,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
+                        if (_historyList.isNotEmpty)
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(15),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: IconButton(
+                              onPressed: _clearAllHistory,
+                              icon: const Icon(Icons.delete_sweep, color: Colors.red),
+                              tooltip: '清空所有记录',
+                              iconSize: 22,
+                            ),
+                          ),
+                      ],
+                    ),
                   ],
                 ),
               ),
-              
+
               // 历史记录列表
               Expanded(
                 child: _isLoading
@@ -257,37 +292,103 @@ class _HistoryScreenState extends State<HistoryScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF00BCD4), Color(0xFF4CAF50)],
+          // 使用动画效果
+          TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 0.0, end: 1.0),
+            duration: const Duration(milliseconds: 800),
+            curve: Curves.elasticOut,
+            builder: (context, value, child) {
+              return Transform.scale(
+                scale: value,
+                child: child,
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF00BCD4), Color(0xFF4CAF50)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(50),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF00BCD4).withOpacity(0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
               ),
-              borderRadius: BorderRadius.circular(50),
-            ),
-            child: const Icon(
-              Icons.history,
-              size: 64,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            '暂无历史记录',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF333333),
+              child: const Icon(
+                Icons.history,
+                size: 64,
+                color: Colors.white,
+              ),
             ),
           ),
-          const SizedBox(height: 12),
-          Text(
-            '开始添加水印，记录会自动保存在这里',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade600,
+          const SizedBox(height: 30),
+          TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 0.0, end: 1.0),
+            duration: const Duration(milliseconds: 800),
+            curve: Curves.easeOutQuad,
+            builder: (context, value, child) {
+              return Opacity(
+                opacity: value,
+                child: Transform.translate(
+                  offset: Offset(0, 20 * (1 - value)),
+                  child: child,
+                ),
+              );
+            },
+            child: Column(
+              children: [
+                const Text(
+                  '暂无历史记录',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF333333),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF00BCD4).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: const Color(0xFF00BCD4).withOpacity(0.3),
+                    ),
+                  ),
+                  child: Text(
+                    '开始添加水印，记录会自动保存在这里',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey.shade700,
+                      height: 1.5,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(height: 30),
+                ElevatedButton.icon(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.add_photo_alternate),
+                  label: const Text('返回添加水印'),
+                  style: ElevatedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    backgroundColor: const Color(0xFF00BCD4),
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    elevation: 5,
+                    shadowColor: const Color(0xFF00BCD4).withOpacity(0.5),
+                  ),
+                ),
+              ],
             ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -296,16 +397,25 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Widget _buildHistoryList() {
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
       itemCount: _historyList.length,
       itemBuilder: (context, index) {
         final history = _historyList[index];
-        return _buildHistoryItem(history, index);
+
+        // 使用简单的淡入动画，避免使用动画控制器
+        return AnimatedOpacity(
+          opacity: 1.0,
+          duration: Duration(milliseconds: 500 + (index * 100)),
+          curve: Curves.easeOut,
+          child: _buildHistoryItem(history, index),
+        );
       },
     );
   }
 
   Widget _buildHistoryItem(WatermarkHistory history, int index) {
+    final bool imageExists = File(history.imagePath).existsSync();
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -313,163 +423,266 @@ class _HistoryScreenState extends State<HistoryScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withOpacity(0.08),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
         ],
+        border: Border.all(
+          color: const Color(0xFF00BCD4).withOpacity(0.1),
+          width: 1,
+        ),
       ),
-      child: InkWell(
+      child: Material(
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(20),
-        onTap: () => _showImagePreview(history),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () => _showImagePreview(history),
+          child: Column(
             children: [
-              // 图片预览
+              // 顶部信息栏
               Container(
-                width: 80,
-                height: 80,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: const Color(0xFF00BCD4).withOpacity(0.3),
-                    width: 2,
+                  gradient: LinearGradient(
+                    colors: [
+                      const Color(0xFF00BCD4).withOpacity(0.1),
+                      const Color(0xFF4CAF50).withOpacity(0.1),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: File(history.imagePath).existsSync()
-                      ? Image.file(
-                          File(history.imagePath),
-                          fit: BoxFit.cover,
-                        )
-                      : Container(
-                          color: Colors.grey.shade200,
-                          child: Icon(
-                            Icons.image_not_supported,
-                            color: Colors.grey.shade400,
-                            size: 32,
-                          ),
-                        ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              
-              // 信息区域
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
-                    Text(
-                      history.watermarkText.length > 20
-                          ? '${history.watermarkText.substring(0, 20)}...'
-                          : history.watermarkText,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF333333),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 5,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        Icons.history,
+                        size: 18,
+                        color: const Color(0xFF00BCD4),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.access_time,
-                          size: 16,
-                          color: Colors.grey.shade600,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _formatDateTime(history.timestamp),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            history.watermarkText.length > 20
+                                ? '${history.watermarkText.substring(0, 20)}...'
+                                : history.watermarkText,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF333333),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.image,
-                          size: 16,
-                          color: Colors.grey.shade600,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          File(history.imagePath).existsSync() ? '图片可用' : '图片已删除',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: File(history.imagePath).existsSync()
-                                ? const Color(0xFF4CAF50)
-                                : Colors.red,
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.access_time,
+                                size: 14,
+                                color: Colors.grey.shade600,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                _formatDateTime(history.timestamp),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Icon(
+                                imageExists ? Icons.check_circle : Icons.error,
+                                size: 14,
+                                color: imageExists ? const Color(0xFF4CAF50) : Colors.red,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                imageExists ? '图片可用' : '图片已删除',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: imageExists ? const Color(0xFF4CAF50) : Colors.red,
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
-              
-              // 操作按钮
-              Column(
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF00BCD4), Color(0xFF4CAF50)],
+
+              // 图片和操作区域
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    // 图片预览
+                    Hero(
+                      tag: 'history_image_${history.imagePath}',
+                      child: Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(15),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF00BCD4).withOpacity(0.2),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                          border: Border.all(
+                            color: const Color(0xFF00BCD4).withOpacity(0.3),
+                            width: 2,
+                          ),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(13),
+                          child: imageExists
+                              ? Image.file(
+                                  File(history.imagePath),
+                                  fit: BoxFit.cover,
+                                )
+                              : Container(
+                                  color: Colors.grey.shade200,
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.image_not_supported,
+                                        color: Colors.grey.shade400,
+                                        size: 32,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        '图片不可用',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey.shade500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                        ),
                       ),
-                      borderRadius: BorderRadius.circular(8),
                     ),
-                    child: IconButton(
-                      onPressed: () => _showImagePreview(history),
-                      icon: const Icon(Icons.visibility, color: Colors.white, size: 20),
-                      tooltip: '预览',
+                    const SizedBox(width: 16),
+
+                    // 操作按钮
+                    Expanded(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _buildActionButton(
+                            icon: Icons.visibility,
+                            label: '预览',
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF00BCD4), Color(0xFF4CAF50)],
+                            ),
+                            onTap: () => _showImagePreview(history),
+                          ),
+                          _buildActionButton(
+                            icon: _downloadingItems.contains(index)
+                                ? Icons.hourglass_empty
+                                : Icons.download,
+                            label: _downloadingItems.contains(index) ? '下载中' : '下载',
+                            gradient: LinearGradient(
+                              colors: _downloadingItems.contains(index)
+                                  ? [Colors.grey.shade400, Colors.grey.shade500]
+                                  : [Colors.green.shade400, Colors.green.shade600],
+                            ),
+                            isLoading: _downloadingItems.contains(index),
+                            onTap: _downloadingItems.contains(index)
+                                ? null
+                                : () => _downloadHistoryImage(history, index),
+                          ),
+                          _buildActionButton(
+                            icon: Icons.delete,
+                            label: '删除',
+                            gradient: LinearGradient(
+                              colors: [Colors.red.shade300, Colors.red.shade500],
+                            ),
+                            onTap: () => _deleteHistoryItem(index),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: _downloadingItems.contains(index) 
-                          ? Colors.grey.shade200 
-                          : Colors.green.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: IconButton(
-                      onPressed: _downloadingItems.contains(index) 
-                          ? null 
-                          : () => _downloadHistoryImage(history, index),
-                      icon: _downloadingItems.contains(index)
-                          ? SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.grey.shade600),
-                              ),
-                            )
-                          : Icon(Icons.download, color: Colors.green.shade600, size: 20),
-                      tooltip: _downloadingItems.contains(index) ? '下载中...' : '重新下载',
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: IconButton(
-                      onPressed: () => _deleteHistoryItem(index),
-                      icon: Icon(Icons.delete, color: Colors.red.shade600, size: 20),
-                      tooltip: '删除',
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required Gradient gradient,
+    bool isLoading = false,
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+        decoration: BoxDecoration(
+          gradient: gradient,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 5,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            isLoading
+                ? SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : Icon(icon, color: Colors.white, size: 20),
+            const SizedBox(height: 5),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -479,11 +692,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
     if (!File(history.imagePath).existsSync()) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('图片文件不存在'),
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white),
+              const SizedBox(width: 12),
+              const Expanded(child: Text('图片文件不存在')),
+            ],
+          ),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(15),
+          ),
+          action: SnackBarAction(
+            label: '确定',
+            textColor: Colors.white,
+            onPressed: () {},
           ),
         ),
       );
@@ -501,22 +725,38 @@ class _HistoryScreenState extends State<HistoryScreen> {
         builder: (context, scrollController) => Container(
           decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
           ),
           child: Column(
             children: [
+              // 标题栏
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     colors: [Color(0xFF00BCD4), Color(0xFF4CAF50)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF00BCD4).withOpacity(0.2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.preview, color: Colors.white),
-                    const SizedBox(width: 12),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: const Icon(Icons.preview, color: Colors.white, size: 24),
+                    ),
+                    const SizedBox(width: 16),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -525,16 +765,33 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             '历史记录预览',
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 18,
+                              fontSize: 20,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          Text(
-                            _formatDateTime(history.timestamp),
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 12,
-                            ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Icon(Icons.access_time, color: Colors.white70, size: 14),
+                              const SizedBox(width: 6),
+                              Text(
+                                _formatDateTime(history.timestamp),
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              const Icon(Icons.calendar_today, color: Colors.white70, size: 14),
+                              const SizedBox(width: 6),
+                              Text(
+                                '${history.timestamp.year}/${history.timestamp.month}/${history.timestamp.day}',
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -542,240 +799,270 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        IconButton(
-                          onPressed: () => _downloadHistoryImage(history, -1),
-                          icon: const Icon(Icons.download, color: Colors.white),
-                          tooltip: '重新下载',
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: IconButton(
+                            onPressed: () => _downloadHistoryImage(history, -1),
+                            icon: const Icon(Icons.download, color: Colors.white),
+                            tooltip: '重新下载',
+                            iconSize: 22,
+                          ),
                         ),
-                        IconButton(
-                          onPressed: () => Navigator.pop(context),
-                          icon: const Icon(Icons.close, color: Colors.white),
+                        const SizedBox(width: 8),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: IconButton(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.close, color: Colors.white),
+                            iconSize: 22,
+                          ),
                         ),
                       ],
                     ),
                   ],
                 ),
               ),
-              
+
               // 图片预览
               Expanded(
                 child: SingleChildScrollView(
                   controller: scrollController,
+                  physics: const BouncingScrollPhysics(),
                   child: Container(
                     padding: const EdgeInsets.all(20),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                      // 水印文本信息
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade300),
+                        // 水印文本信息
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                const Color(0xFF00BCD4).withOpacity(0.1),
+                                const Color(0xFF4CAF50).withOpacity(0.1),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: const Color(0xFF00BCD4).withOpacity(0.3),
+                              width: 1,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.03),
+                                blurRadius: 10,
+                                offset: const Offset(0, 5),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF00BCD4).withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Icon(
+                                      Icons.text_fields,
+                                      size: 18,
+                                      color: Color(0xFF00BCD4),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  const Text(
+                                    '水印文本',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF333333),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(15),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.05),
+                                      blurRadius: 5,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Text(
+                                  history.watermarkText,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    color: Color(0xFF333333),
+                                    height: 1.5,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+
+                        const SizedBox(height: 24),
+
+                        // 图片预览
+                        Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 15,
+                                offset: const Offset(0, 5),
+                              ),
+                            ],
+                            border: Border.all(
+                              color: const Color(0xFF00BCD4).withOpacity(0.3),
+                              width: 2,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      const Color(0xFF00BCD4).withOpacity(0.1),
+                                      const Color(0xFF4CAF50).withOpacity(0.1),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: const BorderRadius.vertical(
+                                    top: Radius.circular(18),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(12),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.05),
+                                            blurRadius: 5,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Icon(
+                                        Icons.image,
+                                        size: 18,
+                                        color: Color(0xFF00BCD4),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    const Text(
+                                      '水印图片',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF333333),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Hero(
+                                tag: 'history_image_preview_${history.imagePath}',
+                                child: ClipRRect(
+                                  borderRadius: const BorderRadius.vertical(
+                                    bottom: Radius.circular(18),
+                                  ),
+                                  child: Image.file(
+                                    File(history.imagePath),
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 30),
+
+                        // 底部操作按钮
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text(
-                              '水印文本',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF666666),
+                            ElevatedButton.icon(
+                              onPressed: () => _downloadHistoryImage(history, -1),
+                              icon: const Icon(Icons.download),
+                              label: const Text('保存到相册'),
+                              style: ElevatedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                backgroundColor: const Color(0xFF4CAF50),
+                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                                elevation: 5,
+                                shadowColor: const Color(0xFF4CAF50).withOpacity(0.5),
                               ),
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              history.watermarkText,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                color: Color(0xFF333333),
+                            const SizedBox(width: 16),
+                            OutlinedButton.icon(
+                              onPressed: () => Navigator.pop(context),
+                              icon: const Icon(Icons.close),
+                              label: const Text('关闭'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF00BCD4),
+                                side: const BorderSide(color: Color(0xFF00BCD4)),
+                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
                               ),
                             ),
                           ],
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      
-                      // 图片
-                      Flexible(
-                        child: GestureDetector(
-                          onTap: () => _showFullScreenImage(history),
-                          child: Container(
-                            constraints: BoxConstraints(
-                              maxHeight: MediaQuery.of(context).size.height * 0.5,
-                            ),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: const Color(0xFF00BCD4).withOpacity(0.3),
-                                width: 2,
-                              ),
-                            ),
-                            child: Stack(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: Image.file(
-                                    File(history.imagePath),
-                                    fit: BoxFit.contain,
-                                    width: double.infinity,
-                                  ),
-                                ),
-                                Positioned(
-                                  top: 8,
-                                  right: 8,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black54,
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: const Icon(
-                                      Icons.zoom_in,
-                                      color: Colors.white,
-                                      size: 20,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  void _showFullScreenImage(WatermarkHistory history) {
-    if (!File(history.imagePath).existsSync()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('图片文件不存在'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      );
-      return;
-    }
-
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.black,
-        insetPadding: EdgeInsets.zero,
-        child: Stack(
-          children: [
-            Center(
-              child: InteractiveViewer(
-                panEnabled: true,
-                boundaryMargin: const EdgeInsets.all(20),
-                minScale: 0.5,
-                maxScale: 4.0,
-                child: Image.file(
-                  File(history.imagePath),
-                  fit: BoxFit.contain,
-                ),
-              ),
-            ),
-            Positioned(
-              top: 40,
-              right: 20,
-              child: Row(
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black54,
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                    child: IconButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _downloadHistoryImage(history, -1);
-                      },
-                      icon: const Icon(Icons.download, color: Colors.white),
-                      tooltip: '下载',
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black54,
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                    child: IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close, color: Colors.white),
-                      tooltip: '关闭',
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Positioned(
-              bottom: 40,
-              left: 20,
-              right: 20,
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '水印文本: ${history.watermarkText}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '创建时间: ${_formatDateTime(history.timestamp)}',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
         ),
       ),
     );
   }
 
   Future<void> _downloadHistoryImage(WatermarkHistory history, int index) async {
-    // 防止重复点击
-    if (index >= 0 && _downloadingItems.contains(index)) {
-      return;
-    }
-
+    // 检查图片是否存在
     if (!File(history.imagePath).existsSync()) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('图片文件不存在'),
+          content: const Text('图片文件不存在，无法下载'),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
@@ -786,71 +1073,44 @@ class _HistoryScreenState extends State<HistoryScreen> {
       return;
     }
 
+    // 设置下载状态
+    if (index >= 0) {
+      setState(() {
+        _downloadingItems.add(index);
+      });
+    }
+
     try {
-      // 添加到下载中列表
+      // 保存图片到相册
+      final result = await ImageGallerySaverPlus.saveFile(history.imagePath);
+
+      // 更新下载状态
       if (index >= 0) {
         setState(() {
-          _downloadingItems.add(index);
+          _downloadingItems.remove(index);
         });
       }
 
-      // 显示加载提示
+      // 显示成功消息
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Row(
-            children: [
-              const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              ),
-              const SizedBox(width: 16),
-              const Text('正在保存到相册...'),
-            ],
-          ),
-          backgroundColor: const Color(0xFF00BCD4),
+          content: const Text('图片已保存到相册'),
+          backgroundColor: const Color(0xFF4CAF50),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
-          duration: const Duration(seconds: 2),
         ),
       );
-
-      // 读取图片文件
-      final imageBytes = await File(history.imagePath).readAsBytes();
-      
-      // 保存到相册
-      final result = await ImageGallerySaverPlus.saveImage(
-        imageBytes,
-        quality: 100,
-        name: 'watermark_${DateTime.now().millisecondsSinceEpoch}',
-      );
-
-      if (result['isSuccess'] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 12),
-                Text('图片已保存到相册'),
-              ],
-            ),
-            backgroundColor: const Color(0xFF4CAF50),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        );
-      } else {
-        throw Exception('保存失败');
-      }
     } catch (e) {
+      // 更新下载状态
+      if (index >= 0) {
+        setState(() {
+          _downloadingItems.remove(index);
+        });
+      }
+
+      // 显示错误消息
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('保存失败: $e'),
@@ -861,13 +1121,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
         ),
       );
-    } finally {
-      // 从下载中列表移除
-      if (index >= 0) {
-        setState(() {
-          _downloadingItems.remove(index);
-        });
-      }
     }
   }
 
@@ -875,7 +1128,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final now = DateTime.now();
     final difference = now.difference(dateTime);
 
-    if (difference.inDays > 0) {
+    if (difference.inDays > 365) {
+      return '${(difference.inDays / 365).floor()}年前';
+    } else if (difference.inDays > 30) {
+      return '${(difference.inDays / 30).floor()}个月前';
+    } else if (difference.inDays > 0) {
       return '${difference.inDays}天前';
     } else if (difference.inHours > 0) {
       return '${difference.inHours}小时前';
@@ -885,4 +1142,4 @@ class _HistoryScreenState extends State<HistoryScreen> {
       return '刚刚';
     }
   }
-}
+  }

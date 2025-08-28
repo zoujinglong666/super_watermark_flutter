@@ -43,6 +43,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   double _rotation = -30.0;
   double _spacing = 50.0; // 水印间距
   bool _isDownloading = false; // 下载状态
+  bool _addDateWatermark = true; // 是否添加日期隐水印
   
   // 图片旋转角度
   double _imageRotation = 0.0;
@@ -429,7 +430,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             rotation: _rotation,
             spacing: _spacing,
             mode: WatermarkMode.tile,
-            imageRotation: _imageRotation, // 传递图片旋转角度
+            imageRotation: _imageRotation,
+              addDateWatermark: _addDateWatermark, // 传递是否添加日期隐水印// 传递图片旋转角度
           ),
             ),
           ),
@@ -1024,22 +1026,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final frame = await originalImage.getNextFrame();
     final image = frame.image;
 
-    // 计算字体缩放比例，确保与预览效果一致
-    final previewContainerHeight = 320.0; // 预览容器的固定高度
-    final imageAspectRatio = image.width / image.height;
-    final containerAspectRatio = MediaQuery.of(context).size.width / previewContainerHeight;
+    // 直接使用固定的字体大小，不进行缩放，确保清晰度
+    // 根据图片分辨率调整字体大小，确保在高分辨率图片上水印也足够清晰
+    final baseFontSize = _fontSize;
     
-    double previewImageHeight;
-    if (imageAspectRatio > containerAspectRatio) {
-      // 图片更宽，以宽度为准
-      previewImageHeight = MediaQuery.of(context).size.width / imageAspectRatio;
-    } else {
-      // 图片更高，以高度为准
-      previewImageHeight = previewContainerHeight;
-    }
+    // 计算图片的对角线长度，作为参考值
+    final imageDiagonal = sqrt(image.width * image.width + image.height * image.height);
     
-    // 计算缩放比例：原图高度 / 预览显示高度
-    final scaleFactor = image.height / previewImageHeight;
+    // 根据图片大小动态调整字体大小，但设置上限和下限
+    // 对于非常大的图片，字体大小会适当增加，但不会无限增大
+    final fontSizeFactor = min(max(imageDiagonal / 1500, 1.0), 3.0);
+    
+    // 最终的字体大小
+    final adjustedFontSize = baseFontSize * fontSizeFactor;
     
     // 使用与预览相同的水印绘制逻辑
     final recorder = ui.PictureRecorder();
@@ -1066,13 +1065,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       paint,
     );
     
-    // 使用与预览相同的水印绘制逻辑
+    // 使用与预览相同的水印绘制逻辑，但使用调整后的字体大小
     if (_watermarkText.isNotEmpty) {
       final textPainter = TextPainter(
         text: TextSpan(
           text: _watermarkText,
           style: TextStyle(
-            fontSize: _fontSize * scaleFactor,
+            fontSize: adjustedFontSize,
             color: _textColor.withOpacity(_opacity),
             fontWeight: FontWeight.w500,
           ),
@@ -1081,20 +1080,62 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       );
       textPainter.layout();
       
-      // 使用与预览相同的平铺水印逻辑
-      _drawTileWatermarkForExport(canvas, textPainter, Size(image.width.toDouble(), image.height.toDouble()), _rotation, _spacing * scaleFactor);
+      // 调整水印间距，与字体大小成比例
+      final adjustedSpacing = _spacing * fontSizeFactor;
+      
+      // 使用调整后的平铺水印逻辑
+      _drawTileWatermarkForExport(canvas, textPainter, Size(image.width.toDouble(), image.height.toDouble()), _rotation, adjustedSpacing);
     }
     
+    // 添加日期隐水印
+    if (_addDateWatermark) {
+      final now = DateTime.now();
+      final dateText = '${now.year}/${now.month}/${now.day} ${now.hour}:${now.minute}';
+      
+      // 创建几乎透明的日期水印，使用调整后的字体大小
+      final dateFontSize = 8.0 * fontSizeFactor;
+      final dateTextPainter = TextPainter(
+        text: TextSpan(
+          text: dateText,
+          style: TextStyle(
+            fontSize: dateFontSize, // 调整后的小字体
+            color: Colors.black.withOpacity(0.03), // 非常低的不透明度
+            fontWeight: FontWeight.w300,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+      dateTextPainter.layout();
+      
+      // 在图片右下角添加日期水印，使用固定的边距
+      final padding = 20.0 * fontSizeFactor;
+      final dateX = image.width - dateTextPainter.width - padding;
+      final dateY = image.height - dateTextPainter.height - padding / 2;
+        
+        canvas.save();
+        canvas.translate(dateX, dateY);
+        dateTextPainter.paint(canvas, Offset.zero);
+        canvas.restore();
+      }
+    
     final picture = recorder.endRecording();
+    
+    // 使用原始图像的尺寸创建高质量图像
     final watermarkedImage = await picture.toImage(image.width, image.height);
     picture.dispose();
     
-    // 转换为字节数组
+    // 转换为字节数组，使用高质量PNG格式
     final byteData = await watermarkedImage.toByteData(format: ui.ImageByteFormat.png);
-    return byteData!.buffer.asUint8List();
+    final resultBytes = byteData!.buffer.asUint8List();
+    
+    // 释放资源
+    image.dispose();
+    watermarkedImage.dispose();
+    
+    return resultBytes;
   }
   
-  // 与预览保持一致的平铺水印绘制方法
+  // 优化的平铺水印绘制方法，确保导出图片的水印清晰
   void _drawTileWatermarkForExport(Canvas canvas, TextPainter textPainter, Size imageSize, double rotation, double spacing) {
     final textWidth = textPainter.width;
     final textHeight = textPainter.height;
@@ -1106,23 +1147,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final rotatedWidth = textWidth * cosVal + textHeight * sinVal;
     final rotatedHeight = textWidth * sinVal + textHeight * cosVal;
 
-    // 计算水印间距
+    // 计算水印间距，确保间距与图像大小成比例
     final baseVerticalSpacing = spacing;
     final userHorizontalSpacing = spacing * 1.0;
     
-    final minHorizontalSpacing = rotatedWidth + 20;
-    final minVerticalSpacing = rotatedHeight + 15;
+    // 确保最小间距与文本大小成比例
+    final minHorizontalSpacing = rotatedWidth + rotatedWidth * 0.2; // 增加20%的间距
+    final minVerticalSpacing = rotatedHeight + rotatedHeight * 0.15; // 增加15%的间距
     
-    final horizontalSpacing = (minHorizontalSpacing > userHorizontalSpacing) 
-        ? minHorizontalSpacing 
-        : userHorizontalSpacing;
-    final verticalSpacing = (minVerticalSpacing > baseVerticalSpacing) 
-        ? minVerticalSpacing 
-        : baseVerticalSpacing;
+    final horizontalSpacing = max(minHorizontalSpacing, userHorizontalSpacing);
+    final verticalSpacing = max(minVerticalSpacing, baseVerticalSpacing);
 
     // 计算网格数量
-    final cols = ((imageSize.width + rotatedWidth * 2) / horizontalSpacing).ceil() + 1;
-    final rows = ((imageSize.height + rotatedHeight * 2) / verticalSpacing).ceil() + 1;
+    final cols = ((imageSize.width + rotatedWidth) / horizontalSpacing).ceil() + 1;
+    final rows = ((imageSize.height + rotatedHeight) / verticalSpacing).ceil() + 1;
 
     // 计算起始位置，确保居中对齐
     final totalWidth = (cols - 1) * horizontalSpacing;
@@ -1142,16 +1180,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           x += horizontalSpacing * 0.5;
         }
 
-        // 检查是否在图片区域内
-        if (x >= -rotatedWidth/2 && 
-            x <= imageSize.width - rotatedWidth/2 &&
-            y >= -rotatedHeight/2 && 
-            y <= imageSize.height - rotatedHeight/2) {
+        // 检查是否在图片区域内（扩大一点边界，确保边缘水印完整显示）
+        if (x >= -rotatedWidth && 
+            x <= imageSize.width &&
+            y >= -rotatedHeight && 
+            y <= imageSize.height) {
           
           canvas.save();
+          // 确保水印文本居中对齐
           canvas.translate(x + textWidth / 2, y + textHeight / 2);
           canvas.rotate(rotationRad);
           canvas.translate(-textWidth / 2, -textHeight / 2);
+          
+          // 使用抗锯齿绘制，确保文本清晰
           textPainter.paint(canvas, Offset.zero);
           canvas.restore();
         }
@@ -1469,6 +1510,47 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               setState(() {});
                             },
                           ),
+                          const SizedBox(height: 16),
+                          
+                          // 日期隐水印开关
+                          Row(
+                            children: [
+                              Icon(Icons.date_range, size: 18, color: const Color(0xFF00BCD4)),
+                              const SizedBox(width: 8),
+                              const Text(
+                                '添加日期隐水印',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF666666),
+                                ),
+                              ),
+                              const Spacer(),
+                              Switch(
+                                value: _addDateWatermark,
+                                activeColor: const Color(0xFF4CAF50),
+                                activeTrackColor: const Color(0xFF4CAF50).withOpacity(0.4),
+                                onChanged: (value) {
+                                  setModalState(() {
+                                    _addDateWatermark = value;
+                                  });
+                                  setState(() {});
+                                },
+                              ),
+                            ],
+                          ),
+                          if (_addDateWatermark)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 26, top: 4, bottom: 16),
+                              child: Text(
+                                '将在图片右下角添加几乎不可见的日期时间水印',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ),
                           const SizedBox(height: 8),
                           Row(
                             children: [

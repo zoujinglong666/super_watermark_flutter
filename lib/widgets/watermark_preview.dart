@@ -19,6 +19,7 @@ class WatermarkPreview extends StatelessWidget {
   final double? spacing;
   final WatermarkMode mode;
   final double imageRotation; // 添加图片旋转角度参数
+  final bool addDateWatermark; // 添加日期隐水印参数
 
   const WatermarkPreview({
     super.key,
@@ -31,6 +32,7 @@ class WatermarkPreview extends StatelessWidget {
     this.spacing,
     this.mode = WatermarkMode.tile,
     this.imageRotation = 0, // 默认为0度，不旋转
+    this.addDateWatermark = false, // 默认不添加日期隐水印
   });
 
   @override
@@ -79,6 +81,7 @@ class WatermarkPreview extends StatelessWidget {
                       mode: mode,
                       imageSize: Size(snapshot.data!.width.toDouble(), snapshot.data!.height.toDouble()),
                       containerSize: Size(constraints.maxWidth, constraints.maxHeight),
+                      addDateWatermark: addDateWatermark, // 传递日期隐水印参数
                     ),
                   ),
                 ),
@@ -111,6 +114,7 @@ class WatermarkPainter extends CustomPainter {
   final WatermarkMode mode;
   final Size imageSize;
   final Size containerSize;
+  final bool addDateWatermark; // 添加日期隐水印参数
 
   WatermarkPainter({
     required this.text,
@@ -121,6 +125,7 @@ class WatermarkPainter extends CustomPainter {
     required this.mode,
     required this.imageSize,
     required this.containerSize,
+    this.addDateWatermark = false, // 默认不添加日期隐水印
   });
 
   @override
@@ -154,6 +159,11 @@ class WatermarkPainter extends CustomPainter {
       case WatermarkMode.diagonal:
         _drawDiagonalWatermark(canvas, textPainter, imageRect);
         break;
+    }
+    
+    // 添加日期隐水印
+    if (addDateWatermark) {
+      _drawDateWatermark(canvas, imageRect);
     }
   }
 
@@ -472,6 +482,36 @@ class WatermarkPainter extends CustomPainter {
     return imageRect.overlaps(textRect);
   }
 
+  // 绘制日期隐水印
+  void _drawDateWatermark(Canvas canvas, Rect imageRect) {
+    // 获取当前日期时间
+    final now = DateTime.now();
+    final dateText = '${now.year}/${now.month}/${now.day} ${now.hour}:${now.minute}';
+    
+    // 创建日期水印文本绘制器
+    final dateTextPainter = TextPainter(
+      text: TextSpan(
+        text: dateText,
+        style: TextStyle(
+          fontSize: 8, // 小字体
+          color: Colors.black.withOpacity(0.03), // 非常低的不透明度
+          fontWeight: FontWeight.w300,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+    dateTextPainter.layout();
+    
+    // 在图片右下角添加日期水印
+    final dateX = imageRect.right - dateTextPainter.width - 10;
+    final dateY = imageRect.bottom - dateTextPainter.height - 5;
+    
+    canvas.save();
+    canvas.translate(dateX, dateY);
+    dateTextPainter.paint(canvas, Offset.zero);
+    canvas.restore();
+  }
+
   @override
   bool shouldRepaint(covariant WatermarkPainter oldDelegate) {
     return oldDelegate.text != text ||
@@ -481,6 +521,7 @@ class WatermarkPainter extends CustomPainter {
         oldDelegate.spacing != spacing ||
         oldDelegate.mode != mode ||
         oldDelegate.imageSize != imageSize ||
-        oldDelegate.containerSize != containerSize;
+        oldDelegate.containerSize != containerSize ||
+        oldDelegate.addDateWatermark != addDateWatermark;
   }
 }
