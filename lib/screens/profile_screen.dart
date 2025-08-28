@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/watermark_history.dart';
 import 'history_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -531,8 +530,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               );
             },
           ),
-          
-          const SizedBox(height: 10),
         ],
       ),
     );

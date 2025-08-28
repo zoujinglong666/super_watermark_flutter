@@ -1,10 +1,63 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:camera/camera.dart';
 import 'screens/home_screen.dart';
 import 'screens/profile_screen.dart';
 
-void main() {
+List<CameraDescription> cameras = [];
+
+Future<void> main() async {
+  // 确保Flutter绑定初始化
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // 尝试获取可用相机列表
+  try {
+    cameras = await availableCameras();
+    print('可用相机数量: ${cameras.length}');
+    for (var camera in cameras) {
+      print('相机: ${camera.name}, 方向: ${camera.lensDirection}, 传感器方向: ${camera.sensorOrientation}');
+    }
+  } on CameraException catch (e) {
+    print('相机初始化错误: ${e.code}, ${e.description}');
+  }
+  
+  // 请求相机和存储权限
+  await _requestPermissions();
+  
   runApp(const WatermarkApp());
+}
+
+Future<void> _requestPermissions() async {
+  // 请求相机权限
+  var cameraStatus = await Permission.camera.status;
+  if (!cameraStatus.isGranted) {
+    await Permission.camera.request();
+  }
+  
+  // 请求存储权限
+  var storageStatus = await Permission.storage.status;
+  if (!storageStatus.isGranted) {
+    await Permission.storage.request();
+  }
+  
+  // 请求照片权限（iOS特有）
+  var photosStatus = await Permission.photos.status;
+  if (!photosStatus.isGranted) {
+    await Permission.photos.request();
+  }
+  
+  // 请求麦克风权限（如果需要录制视频）
+  var microphoneStatus = await Permission.microphone.status;
+  if (!microphoneStatus.isGranted) {
+    await Permission.microphone.request();
+  }
+  
+  // 检查权限状态
+  print('相机权限: ${await Permission.camera.status}');
+  print('存储权限: ${await Permission.storage.status}');
+  print('照片权限: ${await Permission.photos.status}');
+  print('麦克风权限: ${await Permission.microphone.status}');
 }
 
 class WatermarkApp extends StatelessWidget {

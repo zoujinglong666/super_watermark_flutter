@@ -7,8 +7,8 @@ plugins {
 
 android {
     namespace = "com.zou.super_watermark.super_watermark"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    compileSdk = 36 // 更新为支持相机插件的版本
+    ndkVersion = "27.0.12077973" // 更新为支持所有插件的版本
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

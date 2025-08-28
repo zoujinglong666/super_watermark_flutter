@@ -12,8 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/watermark_history.dart';
 import '../widgets/watermark_preview.dart';
-// 移除对watermark_preview组件的依赖
-// import '../widgets/watermark_preview.dart';
+import '../screens/custom_camera_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -41,6 +40,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   double _rotation = -30.0;
   double _spacing = 50.0; // 水印间距
   bool _isDownloading = false; // 下载状态
+  
+  // 图片旋转角度
+  double _imageRotation = 0.0;
   
   // 图片缓存相关
   ui.Image? _cachedImage;
@@ -431,6 +433,44 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                   ),
                 ),
+                // 添加旋转控制按钮
+                Positioned(
+                  bottom: 12,
+                  left: 12,
+                  child: Row(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.rotate_left, color: Colors.white),
+                          onPressed: () {
+                            setState(() {
+                              _imageRotation = (_imageRotation - 90) % 360;
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.rotate_right, color: Colors.white),
+                          onPressed: () {
+                            setState(() {
+                              _imageRotation = (_imageRotation + 90) % 360;
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
     );
@@ -461,16 +501,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             key: _previewKey,
             child: Container(
               color: Colors.transparent,
-              child: WatermarkPreview(
-                image: _selectedImage!,
-                watermarkText: _watermarkText,
-                fontSize: _fontSize,
-                textColor: _textColor,
-                opacity: _opacity,
-                rotation: _rotation,
-                spacing: _spacing,
-                mode: WatermarkMode.tile,
-              ),
+          child: WatermarkPreview(
+            image: _selectedImage!,
+            watermarkText: _watermarkText,
+            fontSize: _fontSize,
+            textColor: _textColor,
+            opacity: _opacity,
+            rotation: _rotation,
+            spacing: _spacing,
+            mode: WatermarkMode.tile,
+            imageRotation: _imageRotation, // 传递图片旋转角度
+          ),
             ),
           ),
         ),
@@ -833,8 +874,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                   child: const Icon(Icons.camera_alt, color: Colors.white),
                 ),
-                title: const Text('拍照'),
-                subtitle: const Text('使用相机拍摄新照片'),
+                title: const Text('普通拍照'),
+                subtitle: const Text('使用系统相机拍摄照片'),
                 onTap: () async {
                   Navigator.pop(context);
                   final XFile? image = await _picker.pickImage(source: ImageSource.camera);
@@ -846,6 +887,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     });
                     await _loadImageToMemory();
                   }
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF00BCD4), Color(0xFF4CAF50)],
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.credit_card, color: Colors.white),
+                ),
+                title: const Text('身份证拍照'),
+                subtitle: const Text('使用专业模式拍摄身份证'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  _openCustomCamera(CameraType.idCardFront);
                 },
               ),
               ListTile(
@@ -881,6 +940,31 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ),
     );
   }
+  
+  // 打开自定义相机
+  Future<void> _openCustomCamera(CameraType cameraType) async {
+    try {
+      final File? capturedImage = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CustomCameraScreen(cameraType: cameraType),
+        ),
+      );
+      
+      if (capturedImage != null) {
+        setState(() {
+          _selectedImage = capturedImage;
+          _isImageLoading = true;
+          _cachedImage = null;
+        });
+        await _loadImageToMemory();
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('相机启动失败: $e')),
+      );
+    }
+  }
 
 
   Future<void> _downloadImage() async {
@@ -898,7 +982,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final result = await ImageGallerySaverPlus.saveImage(
         watermarkedImageBytes,
-        quality:85,
+        quality:100,
         name: "watermark_$timestamp",
       );
 
@@ -906,10 +990,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       final directory = await getTemporaryDirectory();
       final file = File('${directory.path}/watermark_$timestamp.png');
       await file.writeAsBytes(watermarkedImageBytes);
-
       // 保存到历史记录
       await _saveToHistory(file.path);
-
       // 显示成功消息
       if (result['isSuccess'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -999,6 +1081,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     // 使用与预览相同的水印绘制逻辑
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
+    
+    // 如果有旋转角度，先应用旋转变换
+    if (_imageRotation != 0) {
+      // 计算旋转中心点
+      final centerX = image.width / 2;
+      final centerY = image.height / 2;
+      
+      // 平移到中心点，旋转，再平移回原位置
+      canvas.translate(centerX, centerY);
+      canvas.rotate(_imageRotation * pi / 180);
+      canvas.translate(-centerX, -centerY);
+    }
     
     // 绘制背景图片
     final paint = Paint();
@@ -1380,7 +1474,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             '水印间距',
                             Icons.grid_3x3,
                             _spacing,
-                            50,
+                            10,
                             100,
                             '${_spacing.round()}px',
                             (value) {
