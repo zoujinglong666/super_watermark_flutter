@@ -14,14 +14,16 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   List<WatermarkHistory> _historyList = [];
   bool _isLoading = true;
+  Set<int> _downloadingItems = {}; // 记录正在下载的项目索引
 
   @override
   void initState() {
     super.initState();
-    _loadHistory();
+    // 立即加载历史数据，不显示加载状态
+    _loadHistoryImmediately();
   }
 
-  Future<void> _loadHistory() async {
+  Future<void> _loadHistoryImmediately() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final historyStrings = prefs.getStringList('watermark_history') ?? [];
@@ -34,7 +36,25 @@ class _HistoryScreenState extends State<HistoryScreen> {
       });
     } catch (e) {
       setState(() {
+        _historyList = [];
         _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final historyStrings = prefs.getStringList('watermark_history') ?? [];
+      
+      setState(() {
+        _historyList = historyStrings
+            .map((str) => WatermarkHistory.fromJson(str))
+            .toList();
+      });
+    } catch (e) {
+      setState(() {
+        _historyList = [];
       });
     }
   }
@@ -412,13 +432,26 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   const SizedBox(height: 8),
                   Container(
                     decoration: BoxDecoration(
-                      color: Colors.green.shade50,
+                      color: _downloadingItems.contains(index) 
+                          ? Colors.grey.shade200 
+                          : Colors.green.shade50,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: IconButton(
-                      onPressed: () => _downloadHistoryImage(history),
-                      icon: Icon(Icons.download, color: Colors.green.shade600, size: 20),
-                      tooltip: '重新下载',
+                      onPressed: _downloadingItems.contains(index) 
+                          ? null 
+                          : () => _downloadHistoryImage(history, index),
+                      icon: _downloadingItems.contains(index)
+                          ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.grey.shade600),
+                              ),
+                            )
+                          : Icon(Icons.download, color: Colors.green.shade600, size: 20),
+                      tooltip: _downloadingItems.contains(index) ? '下载中...' : '重新下载',
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -457,23 +490,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
       return;
     }
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.8,
-            maxWidth: MediaQuery.of(context).size.width * 0.9,
-          ),
-          decoration: BoxDecoration(
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.3,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             children: [
-              // 标题栏
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -512,7 +543,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
-                          onPressed: () => _downloadHistoryImage(history),
+                          onPressed: () => _downloadHistoryImage(history, -1),
                           icon: const Icon(Icons.download, color: Colors.white),
                           tooltip: '重新下载',
                         ),
@@ -527,12 +558,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ),
               
               // 图片预览
-              Flexible(
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
                       // 水印文本信息
                       Container(
                         width: double.infinity,
@@ -617,6 +650,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   ),
                 ),
               ),
+              ),
             ],
           ),
         ),
@@ -671,7 +705,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     child: IconButton(
                       onPressed: () {
                         Navigator.pop(context);
-                        _downloadHistoryImage(history);
+                        _downloadHistoryImage(history, -1);
                       },
                       icon: const Icon(Icons.download, color: Colors.white),
                       tooltip: '下载',
@@ -732,7 +766,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Future<void> _downloadHistoryImage(WatermarkHistory history) async {
+  Future<void> _downloadHistoryImage(WatermarkHistory history, int index) async {
+    // 防止重复点击
+    if (index >= 0 && _downloadingItems.contains(index)) {
+      return;
+    }
+
     if (!File(history.imagePath).existsSync()) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -748,6 +787,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
 
     try {
+      // 添加到下载中列表
+      if (index >= 0) {
+        setState(() {
+          _downloadingItems.add(index);
+        });
+      }
+
       // 显示加载提示
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -815,6 +861,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
         ),
       );
+    } finally {
+      // 从下载中列表移除
+      if (index >= 0) {
+        setState(() {
+          _downloadingItems.remove(index);
+        });
+      }
     }
   }
 

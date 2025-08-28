@@ -9,13 +9,34 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserver {
   int _historyCount = 0;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _loadHistoryCount();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadHistoryCount();
+    }
+  }
+
+  // 当页面重新显示时刷新数据
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
     _loadHistoryCount();
   }
 
@@ -265,11 +286,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Row(
             children: [
               Expanded(
-                child: _buildStatItem(
-                  '处理图片',
-                  _isLoading ? '-' : '$_historyCount',
-                  Icons.image,
-                  const Color(0xFF00BCD4),
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const HistoryScreen(),
+                      ),
+                    ).then((_) {
+                      _loadHistoryCount();
+                    });
+                  },
+                  child: _buildStatItem(
+                    '处理图片',
+                    _isLoading ? '-' : '$_historyCount',
+                    Icons.image,
+                    const Color(0xFF00BCD4),
+                  ),
                 ),
               ),
               const SizedBox(width: 16),
