@@ -38,39 +38,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFFF8FFFE), Color(0xFFE8F5E8)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 标题区域
-                  _buildHeader(),
-                  const SizedBox(height: 30),
-                  
-                  // 功能卡片区域
-                  _buildFeatureCards(context),
-                  
-                  const SizedBox(height: 30),
-                  
-                  // 统计信息
-                  _buildStatsSection(),
-                  
-                  const SizedBox(height: 30),
-                  
-                  // 设置选项
-                  _buildSettingsSection(),
-                ],
-              ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 标题区域
+                _buildHeader(),
+                const SizedBox(height: 16),
+                // 功能卡片区域
+                _buildFeatureCards(context),
+                const SizedBox(height: 16),
+                // 统计信息
+                _buildStatsSection(),
+                const SizedBox(height: 16),
+
+                // 设置选项
+                _buildSettingsSection(),
+              ],
             ),
           ),
         ),
@@ -159,37 +146,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF00BCD4), Color(0xFF4CAF50)],
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.dashboard,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                const Text(
-                  '功能中心',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF333333),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
           // 历史记录功能卡片
           ListTile(
             leading: Container(
@@ -254,43 +210,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               });
             },
           ),
-          
-          const Divider(height: 1),
-          
-          // 其他功能项
-          ListTile(
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade100,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(Icons.settings, color: Colors.orange.shade600),
-            ),
-            title: const Text(
-              '应用设置',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF333333),
-              ),
-            ),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('功能开发中...'),
-                  backgroundColor: const Color(0xFF00BCD4),
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              );
-            },
-          ),
-          
-          const SizedBox(height: 10),
         ],
       ),
     );
@@ -430,37 +349,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF00BCD4), Color(0xFF4CAF50)],
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.info,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                const Text(
-                  '关于应用',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF333333),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
           ListTile(
             leading: Container(
               padding: const EdgeInsets.all(8),

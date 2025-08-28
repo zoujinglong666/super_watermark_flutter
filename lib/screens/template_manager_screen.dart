@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:super_watermark/screens/template_editor_screen.dart';
 import '../models/watermark_template.dart';
 import '../services/template_service.dart';
 

@@ -31,6 +31,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     {'label': '黑色', 'value': Colors.black},
     {'label': '蓝色', 'value': Colors.blue},
     {'label': '绿色', 'value': Colors.green},
+    {'label': '橙色', 'value': Colors.orange},
+    {'label': '紫色', 'value': Colors.purple},
+    {'label': '靛蓝', 'value': Colors.indigo},
+    {'label': '灰色', 'value': Colors.grey},
   ];
   // 水印设置
   String _watermarkText = '仅供身份验证使用';
@@ -643,16 +647,23 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ],
                 ),
                 const SizedBox(height: 12),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 8,
+                const SizedBox(height: 12),
+                // 使用网格布局让设置项排列更规整
+                // 使用网格布局让设置项排列更规整
+                GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: 2,
+                  childAspectRatio: 2.5,
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
                   children: [
-                    _buildSettingChip('文本', _watermarkText.length > 8 ? '${_watermarkText.substring(0, 8)}...' : _watermarkText, Icons.text_fields),
-                    _buildSettingChip('大小', '${_fontSize.round()}px', Icons.format_size),
-                    _buildSettingChip('透明度', '${(_opacity * 100).round()}%', Icons.opacity),
-                    _buildSettingChip('角度', '${_rotation.round()}°', Icons.rotate_right),
-                    _buildSettingChip('间距', '${_spacing.round()}px', Icons.grid_3x3),
-                    _buildSettingChip('颜色', _textColor == Colors.red ? '红色' : '黑色', Icons.palette, color: _textColor),
+                    _buildSettingChip('文本', _watermarkText.length > 8 ? '${_watermarkText.substring(0, 8)}...' : _watermarkText, Icons.text_fields, onTap: _showSettingsBottomSheet),
+                    _buildSettingChip('大小', '${_fontSize.round()}px', Icons.format_size, onTap: _showSettingsBottomSheet),
+                    _buildSettingChip('透明度', '${(_opacity * 100).round()}%', Icons.opacity, onTap: _showSettingsBottomSheet),
+                    _buildSettingChip('角度', '${_rotation.round()}°', Icons.rotate_right, onTap: _showSettingsBottomSheet),
+                    _buildSettingChip('间距', '${_spacing.round()}px', Icons.grid_3x3, onTap: _showSettingsBottomSheet),
+                    _buildSettingChip('颜色', _getColorName(_textColor), Icons.palette, color: _textColor, onTap: _showSettingsBottomSheet),
                   ],
                 ),
               ],
@@ -663,41 +674,79 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildSettingChip(String label, String value, IconData icon, {Color? color}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 14,
-            color: color ?? const Color(0xFF00BCD4),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            '$label: $value',
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF666666),
+  Widget _buildSettingChip(
+      String label,
+      String value,
+      IconData icon, {
+        Color? color,
+        VoidCallback? onTap,
+      }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20), // ✅ 圆角更像 Chip
+          border: Border.all(color: Colors.grey.shade300),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 3,
+              offset: const Offset(0, 1),
             ),
-          ),
-        ],
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min, // ✅ 自适应宽度
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: color ?? const Color(0xFF00BCD4),
+            ),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min, // ✅ 自适应高度
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF666666),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: color ?? const Color(0xFF00BCD4),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+
+  // 获取颜色名称的辅助方法
+  String _getColorName(Color color) {
+    final colorOption = _colorOptions.firstWhere(
+      (option) => option['value'] == color,
+      orElse: () => {'label': '自定义'},
+    );
+    return colorOption['label'];
   }
 
   Widget _buildSliderSection(String title, double value, double min, double max, Function(double) onChanged, String displayValue) {
@@ -1308,65 +1357,87 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         Icons.text_fields,
                         [
                           // 预设模板
-                          const Text(
-                            '快捷选择',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF666666),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: _presetTexts.map((preset) {
-                              final isSelected = _watermarkText == preset['text'];
-                              return GestureDetector(
-                                onTap: () {
-                                  setModalState(() {
-                                    _watermarkText = preset['text'];
-                                    _textColor = preset['color'];
-                                    textController.text = _watermarkText;
-                                  });
-                                  setState(() {});
-                                },
+                          // 预设模板下拉菜单
+                          Row(
+                            children: [
+                              Icon(Icons.text_snippet, size: 18, color: const Color(0xFF00BCD4)),
+                              const SizedBox(width: 8),
+                              const Text(
+                                '快捷选择',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF666666),
+                                ),
+                              ),
+                              const Spacer(),
+                              Expanded(
+                                flex: 2,
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                   decoration: BoxDecoration(
-                                    gradient: isSelected
-                                        ? const LinearGradient(
-                                            colors: [Color(0xFF00BCD4), Color(0xFF4CAF50)],
-                                          )
-                                        : null,
-                                    color: isSelected ? null : Colors.grey.shade100,
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: isSelected ? Colors.transparent : Colors.grey.shade300,
+                                    color: Colors.grey.shade50,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.grey.shade300),
+                                  ),
+                                  child: DropdownButtonHideUnderline(
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      value: _presetTexts.any((preset) => preset['text'] == _watermarkText) 
+                                          ? _watermarkText 
+                                          : null,
+                                      isDense: true,
+                                      isExpanded: true,
+                                      hint: Text(
+                                        _presetTexts.any((preset) => preset['text'] == _watermarkText)
+                                            ? _watermarkText
+                                            : '自定义文本',
+                                        style: const TextStyle(fontSize: 13),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      icon: const Icon(Icons.arrow_drop_down, size: 20),
+                                      items: _presetTexts.map((preset) {
+                                        return DropdownMenuItem<String>(
+                                          value: preset['text'],
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                preset['icon'],
+                                                size: 16,
+                                                color: preset['color'],
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Text(
+                                                  preset['text'],
+                                                  style: const TextStyle(fontSize: 13),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      }).toList(),
+                                      onChanged: (String? newText) {
+                                        if (newText != null) {
+                                          final preset = _presetTexts.firstWhere(
+                                            (p) => p['text'] == newText,
+                                          );
+                                          setModalState(() {
+                                            _watermarkText = newText;
+                                            _textColor = preset['color'];
+                                            textController.text = _watermarkText;
+                                          });
+                                          setState(() {});
+                                        }
+                                      },
                                     ),
                                   ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        preset['icon'],
-                                        size: 14,
-                                        color: isSelected ? Colors.white : preset['color'],
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        preset['text'],
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w500,
-                                          color: isSelected ? Colors.white : const Color(0xFF333333),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
                                 ),
-                              );
-                            }).toList(),
+                              ),
+                              )
+                            ],
+
                           ),
                           const SizedBox(height: 20),
                           
@@ -1485,83 +1556,95 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             },
                           ),
                           const SizedBox(height: 8),
-                          const Text(
-                            '文字颜色',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF666666),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-// 使用 SingleChildScrollView 和 Row 实现横向滚动
-                          SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Row(
-                              children: _colorOptions.map((colorOption) {
-                                final isSelected = _textColor ==
-                                    colorOption['value'];
-                                return GestureDetector(
-                                  onTap: () {
-                                    setModalState(() {
-                                      _textColor = colorOption['value'];
-                                    });
-                                    setState(() {});
-                                  },
-                                  child: Container(
-                                    width: 100,
-                                    padding: const EdgeInsets.all(16),
-                                    margin: EdgeInsets.only(
-                                      right: colorOption == _colorOptions.last
-                                          ? 0
-                                          : 12,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: colorOption['value'],
-                                      borderRadius: BorderRadius.circular(15),
-                                      border: Border.all(
-                                        color: isSelected ? const Color(
-                                            0xFF00BCD4) : Colors.transparent,
-                                        width: 3,
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: colorOption['value']
-                                              .withOpacity(0.3),
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 4),
+                          Row(
+                            children: [
+                              Icon(Icons.palette, size: 18, color: const Color(0xFF00BCD4)),
+                              const SizedBox(width: 8),
+                              const Text(
+                                '文字颜色',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF666666),
+                                ),
+                              ),
+                              const Spacer(),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade50,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.grey.shade300),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<Color>(
+                                    value: _textColor,
+                                    isDense: true,
+                                    icon: const Icon(Icons.arrow_drop_down, size: 20),
+                                    items: _colorOptions.map((colorOption) {
+                                      return DropdownMenuItem<Color>(
+                                        value: colorOption['value'],
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Container(
+                                              width: 16,
+                                              height: 16,
+                                              decoration: BoxDecoration(
+                                                color: colorOption['value'],
+                                                borderRadius: BorderRadius.circular(8),
+                                                border: Border.all(color: Colors.grey.shade300),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              colorOption['label'],
+                                              style: const TextStyle(fontSize: 14),
+                                            ),
+                                          ],
                                         ),
-                                      ],
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      mainAxisAlignment: MainAxisAlignment
-                                          .center,
-                                      children: [
-                                        Icon(Icons.circle, color: Colors.white,
-                                            size: 16),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          colorOption['label'],
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                        if (isSelected) ...[
-                                          const SizedBox(width: 8),
-                                          const Icon(
-                                              Icons.check, color: Colors.white,
-                                              size: 16),
-                                        ],
-                                      ],
-                                    ),
+                                      );
+                                    }).toList(),
+                                    onChanged: (Color? newColor) {
+                                      if (newColor != null) {
+                                        setModalState(() {
+                                          _textColor = newColor;
+                                        });
+                                        setState(() {});
+                                      }
+                                    },
+                                    selectedItemBuilder: (BuildContext context) {
+                                      return _colorOptions.map((colorOption) {
+                                        return Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Container(
+                                              width: 16,
+                                              height: 16,
+                                              decoration: BoxDecoration(
+                                                color: colorOption['value'],
+                                                borderRadius: BorderRadius.circular(8),
+                                                border: Border.all(color: Colors.grey.shade300),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              colorOption['label'],
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      }).toList();
+                                    },
                                   ),
-                                );
-                              }).toList(),
-                            ),
+                                ),
+                              ),
+                            ],
                           ),
+
 
                         ],
                       ),

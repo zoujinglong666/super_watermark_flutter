@@ -46,18 +46,7 @@ Future<void> _requestPermissions() async {
   if (!photosStatus.isGranted) {
     await Permission.photos.request();
   }
-  
-  // 请求麦克风权限（如果需要录制视频）
-  var microphoneStatus = await Permission.microphone.status;
-  if (!microphoneStatus.isGranted) {
-    await Permission.microphone.request();
-  }
-  
-  // 检查权限状态
-  print('相机权限: ${await Permission.camera.status}');
-  print('存储权限: ${await Permission.storage.status}');
-  print('照片权限: ${await Permission.photos.status}');
-  print('麦克风权限: ${await Permission.microphone.status}');
+ 
 }
 
 class WatermarkApp extends StatelessWidget {
@@ -66,7 +55,7 @@ class WatermarkApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: '超级水印·隐私守护',
+      title: '超级水印',
       theme: ThemeData(
         primarySwatch: Colors.blue,
         useMaterial3: true,
@@ -122,7 +111,10 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _screens[_currentIndex],
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _screens,
+      ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
